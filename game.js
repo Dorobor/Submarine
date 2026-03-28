@@ -10,6 +10,8 @@ const gameState = {
     bubbles: [],
     notificationTimeout: null,
     postModalNotification: null,
+    rescueDragStart: null,
+    rescueSliceTimeout: null,
     imageCache: {},
     imageRequestToken: 0,
     camera: {
@@ -33,12 +35,6 @@ const submarine = {
 
 const fish = [];
 const STATION_PHASES = ["learning", "multiple", "free"];
-const RESCUE_HAZARD_TYPES = [
-    { id: "net", label: "Fishing Net", className: "hazard-net" },
-    { id: "loop", label: "Bottle Loop", className: "hazard-loop" },
-    { id: "line", label: "Stray Line", className: "hazard-line" }
-];
-
 document.addEventListener("DOMContentLoaded", () => {
     initializeGame();
     setupEventListeners();
@@ -98,6 +94,10 @@ function setupEventListeners() {
     document.getElementById("learningNextBtn").addEventListener("click", handleLearningContinue);
     document.getElementById("nextBtn").addEventListener("click", handleResultContinue);
     document.getElementById("restartBtn").addEventListener("click", showStartScreen);
+    document.getElementById("rescueOverlay").addEventListener("pointerdown", beginRescueSlice);
+    document.getElementById("rescueOverlay").addEventListener("pointermove", trackRescueSlice);
+    document.getElementById("rescueOverlay").addEventListener("pointerup", endRescueSlice);
+    document.getElementById("rescueOverlay").addEventListener("pointercancel", endRescueSlice);
 
     document.getElementById("guessModal").addEventListener("click", (event) => {
         if (event.target.id === "guessModal") {
@@ -160,7 +160,7 @@ function resetFish() {
             phase: STATION_PHASES[0],
             radius: 22,
             pulseOffset: Math.random() * Math.PI * 2,
-            rescueChallenge: createRescueChallenge(index),
+            needsRescue: Math.random() < 0.1,
             rescueComplete: false
         });
     });
@@ -499,7 +499,6 @@ function showEncounterModal(fishEntry) {
     document.getElementById("dangerBadge").className = `danger-badge ${DANGER_LEVELS[fishEntry.data.dangerLevel].className}`;
     document.getElementById("dangerBadge").textContent = `Danger: ${DANGER_LEVELS[fishEntry.data.dangerLevel].label}`;
     modalContent.classList.toggle("modal-content-learning", fishEntry.phase === "learning");
-
     if (fishEntry.phase === "free") {
         document.getElementById("freeResponseForm").classList.remove("hidden");
         document.getElementById("guessInput").value = "";
@@ -531,120 +530,6 @@ function getPhaseKicker(phase) {
     return "Learning Card";
 }
 
-function createRescueChallenge(index) {
-    return RESCUE_HAZARD_TYPES.map((hazard, itemIndex) => ({
-        id: `${index + 1}-${itemIndex + 1}`,
-        type: hazard.id,
-        label: hazard.label,
-        className: hazard.className,
-        cleared: false
-    }));
-}
-
-function getRescueFishProfile(species) {
-    const name = species.name.toLowerCase();
-    const hash = [...species.name].reduce((total, char) => total + char.charCodeAt(0), 0);
-    const palettes = [
-        ["#79e7ff", "#166c87", "#ffd166"],
-        ["#94f0af", "#156b52", "#f8f4a6"],
-        ["#ffb36b", "#8f3f1f", "#ffe29a"],
-        ["#f6a6b2", "#7b2742", "#ffd7a8"],
-        ["#a3b8ff", "#314c94", "#f4f7ff"]
-    ];
-    const palette = palettes[hash % palettes.length];
-
-    let shape = "reef";
-    if (name.includes("seahorse")) {
-        shape = "seahorse";
-    } else if (name.includes("eel") || name.includes("pipefish")) {
-        shape = "eel";
-    } else if (name.includes("shark") || name.includes("barracuda") || name.includes("marlin") || name.includes("swordfish") || name.includes("tuna") || name.includes("gar") || name.includes("pike") || name.includes("snook")) {
-        shape = "torpedo";
-    } else if (name.includes("ray")) {
-        shape = "ray";
-    } else if (name.includes("flounder") || name.includes("sole") || name.includes("turbot") || name.includes("plaice") || name.includes("halibut")) {
-        shape = "flat";
-    } else if (name.includes("puffer") || name.includes("boxfish") || name.includes("sunfish") || name.includes("discus")) {
-        shape = "round";
-    }
-
-    return {
-        shape,
-        primary: palette[0],
-        secondary: palette[1],
-        accent: palette[2]
-    };
-}
-
-function createRescueFishSvg(species) {
-    const profile = getRescueFishProfile(species);
-    const safeName = species.name.replace(/&/g, "&amp;");
-    const eyePositions = {
-        reef: { x: 226, y: 108 },
-        torpedo: { x: 246, y: 106 },
-        eel: { x: 270, y: 98 },
-        ray: { x: 194, y: 94 },
-        flat: { x: 214, y: 102 },
-        round: { x: 212, y: 110 },
-        seahorse: { x: 202, y: 88 }
-    };
-    const patterns = {
-        reef: `
-            <ellipse cx="170" cy="110" rx="90" ry="52" fill="url(#fishGradient)"/>
-            <polygon points="74,110 18,66 18,154" fill="url(#fishGradient)"/>
-            <path d="M132 78 C160 42 220 42 248 88" fill="${profile.accent}" opacity="0.75"/>
-            <path d="M146 146 C184 118 222 128 250 148" fill="${profile.accent}" opacity="0.58"/>
-        `,
-        torpedo: `
-            <path d="M28 118 C76 40 194 34 286 88 C312 103 312 117 286 132 C194 186 76 180 28 102 Z" fill="url(#fishGradient)"/>
-            <polygon points="56,110 0,62 0,158" fill="${profile.secondary}"/>
-            <polygon points="154,62 188,24 204,74" fill="${profile.accent}"/>
-            <polygon points="172,154 202,132 210,174" fill="${profile.accent}"/>
-        `,
-        eel: `
-            <path d="M18 122 C68 60 134 62 176 112 C212 154 260 150 314 90 L332 100 C280 174 210 194 156 152 C116 122 76 114 26 154 Z" fill="url(#fishGradient)"/>
-            <path d="M74 114 C130 90 206 96 264 126" stroke="${profile.accent}" stroke-width="12" stroke-linecap="round" fill="none" opacity="0.72"/>
-        `,
-        ray: `
-            <path d="M172 30 C236 62 276 110 286 160 C244 146 206 150 172 186 C138 150 100 146 58 160 C68 110 108 62 172 30 Z" fill="url(#fishGradient)"/>
-            <path d="M172 176 C186 206 188 238 182 278" stroke="${profile.secondary}" stroke-width="12" stroke-linecap="round" fill="none"/>
-        `,
-        flat: `
-            <ellipse cx="170" cy="120" rx="104" ry="62" fill="url(#fishGradient)"/>
-            <polygon points="68,120 18,80 18,160" fill="${profile.secondary}"/>
-            <ellipse cx="196" cy="100" rx="12" ry="8" fill="${profile.accent}" opacity="0.7"/>
-            <ellipse cx="164" cy="86" rx="18" ry="10" fill="${profile.accent}" opacity="0.5"/>
-        `,
-        round: `
-            <circle cx="170" cy="118" r="72" fill="url(#fishGradient)"/>
-            <polygon points="92,118 26,66 26,170" fill="${profile.secondary}"/>
-            <path d="M142 48 Q176 20 212 48" fill="${profile.accent}" opacity="0.62"/>
-            <circle cx="164" cy="110" r="14" fill="${profile.accent}" opacity="0.45"/>
-        `,
-        seahorse: `
-            <path d="M170 36 C214 36 242 70 236 104 C232 128 214 144 214 164 C214 190 234 204 234 226 C234 252 214 270 190 270 C168 270 150 254 150 234 C150 214 164 202 182 202 C172 194 160 182 154 166 C142 136 142 106 146 84 C150 54 154 36 170 36 Z" fill="url(#fishGradient)"/>
-            <path d="M152 136 C122 126 102 108 96 82" stroke="${profile.accent}" stroke-width="16" stroke-linecap="round" fill="none"/>
-            <path d="M192 264 C204 286 194 304 176 304 C160 304 152 290 156 278" stroke="${profile.secondary}" stroke-width="14" stroke-linecap="round" fill="none"/>
-        `
-    };
-
-    const body = patterns[profile.shape] || patterns.reef;
-    const eye = eyePositions[profile.shape] || eyePositions.reef;
-    return `
-        <svg viewBox="0 0 340 320" role="img" aria-label="${safeName}">
-            <defs>
-                <linearGradient id="fishGradient" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stop-color="${profile.primary}"/>
-                    <stop offset="100%" stop-color="${profile.secondary}"/>
-                </linearGradient>
-            </defs>
-            ${body}
-            <circle cx="${eye.x}" cy="${eye.y}" r="12" fill="#032437"/>
-            <circle cx="${eye.x + 4}" cy="${eye.y - 4}" r="3.5" fill="#ffffff"/>
-        </svg>
-    `;
-}
-
 function resetEncounterPanels() {
     document.getElementById("freeResponseForm").classList.add("hidden");
     document.getElementById("choiceForm").classList.add("hidden");
@@ -653,10 +538,18 @@ function resetEncounterPanels() {
     document.getElementById("result").classList.remove("correct", "wrong");
     document.getElementById("fishMeta").classList.add("hidden");
     document.getElementById("choiceButtons").innerHTML = "";
-    document.getElementById("rescueArea").innerHTML = "";
-    document.getElementById("rescueLegend").innerHTML = "";
+    document.getElementById("rescueOverlay").classList.add("hidden");
+    document.getElementById("rescueOverlay").classList.remove("sliced");
+    document.getElementById("rescueSlash").classList.add("hidden");
+    document.getElementById("rescueSlash").removeAttribute("style");
     document.getElementById("studyPanel").classList.add("study-panel-locked");
     document.querySelector("#guessModal .modal-content").classList.remove("modal-content-learning");
+    gameState.rescueDragStart = null;
+
+    if (gameState.rescueSliceTimeout) {
+        clearTimeout(gameState.rescueSliceTimeout);
+        gameState.rescueSliceTimeout = null;
+    }
 }
 
 function closeGuessModal() {
@@ -745,88 +638,121 @@ function showLearningPanel(activeFish) {
     document.getElementById("learningDescription").textContent = activeFish.data.description;
     renderRescueChallenge(activeFish);
     document.getElementById("learningDangerText").textContent = activeFish.data.dangerText;
-    showNotification(
-        `Rescue ${activeFish.data.name} from debris, then continue to move it into multiple-choice mode.`,
-        "side"
-    );
+    if (activeFish.needsRescue && !activeFish.rescueComplete) {
+        showNotification(
+            `Click, hold, and drag across the net to free ${activeFish.data.name}.`,
+            "side"
+        );
+    } else {
+        showNotification(
+            `Study ${activeFish.data.name}, then continue to move it into multiple-choice mode.`,
+            "side"
+        );
+    }
 }
 
 function renderRescueChallenge(activeFish) {
-    const rescueArea = document.getElementById("rescueArea");
-    const rescueTitle = document.getElementById("rescueTitle");
-    const rescuePrompt = document.getElementById("rescuePrompt");
-    const rescueBenefit = document.getElementById("rescueBenefit");
-    const rescueStatus = document.getElementById("rescueStatus");
-    const rescueLegend = document.getElementById("rescueLegend");
+    const rescueOverlay = document.getElementById("rescueOverlay");
+    const rescueOverlayPrompt = document.getElementById("rescueOverlayPrompt");
     const continueButton = document.getElementById("learningNextBtn");
     const studyPanel = document.getElementById("studyPanel");
-    const remainingHazards = activeFish.rescueChallenge.filter((hazard) => !hazard.cleared);
 
-    rescueArea.innerHTML = `
-        <div class="rescue-fish rescue-fish-${getRescueFishProfile(activeFish.data).shape}">
-            ${createRescueFishSvg(activeFish.data)}
-        </div>
-    `;
-    rescueLegend.innerHTML = "";
-
-    activeFish.rescueChallenge.forEach((hazard) => {
-        if (hazard.cleared) {
-            return;
-        }
-
-        const hazardButton = document.createElement("button");
-        hazardButton.type = "button";
-        hazardButton.className = `rescue-hazard ${hazard.className}`;
-        hazardButton.setAttribute("aria-label", `Remove ${hazard.label}`);
-        hazardButton.dataset.hazardType = hazard.type;
-        hazardButton.addEventListener("click", () => {
-            clearRescueHazard(activeFish.id, hazard.id);
-        });
-        rescueArea.appendChild(hazardButton);
-
-        const legendChip = document.createElement("span");
-        legendChip.className = "rescue-chip";
-        legendChip.textContent = hazard.label;
-        rescueLegend.appendChild(legendChip);
-    });
-
-    if (!remainingHazards.length) {
-        rescueTitle.textContent = `${activeFish.data.name} is free of debris`;
-        rescuePrompt.textContent = "Nice work. The fish can move, feed, and avoid danger more safely now.";
-        rescueBenefit.textContent = "Removing plastic lowers stress, prevents injuries, and helps marine life return to normal behavior.";
-        rescueStatus.textContent = "Rescue complete. Continue the mission.";
+    if (!activeFish.needsRescue || activeFish.rescueComplete) {
         continueButton.disabled = false;
         studyPanel.classList.remove("study-panel-locked");
+        rescueOverlay.classList.add("hidden");
         return;
     }
 
-    rescueTitle.textContent = `Free ${activeFish.data.name} from debris`;
-    rescuePrompt.textContent = "Remove the fishing net, the bottle loop around the body, and the stray line caught in the mouth.";
-    rescueBenefit.textContent = "Removing trash helps fish feed, breathe, and escape predators more easily.";
-    rescueStatus.textContent = `${remainingHazards.length} hazard${remainingHazards.length === 1 ? "" : "s"} left to clear.`;
+    rescueOverlay.classList.remove("hidden");
+    rescueOverlay.classList.remove("sliced");
+    rescueOverlayPrompt.textContent = `Click, hold, and drag across the net to cut ${activeFish.data.name} free.`;
     continueButton.disabled = true;
     studyPanel.classList.add("study-panel-locked");
 }
 
-function clearRescueHazard(fishId, hazardId) {
-    const activeFish = fish.find((fishEntry) => fishEntry.id === fishId);
-
-    if (!activeFish) {
+function beginRescueSlice(event) {
+    const activeFish = getActiveFish();
+    if (!activeFish || activeFish.phase !== "learning" || activeFish.rescueComplete) {
         return;
     }
 
-    const hazard = activeFish.rescueChallenge.find((entry) => entry.id === hazardId);
-    if (!hazard || hazard.cleared) {
+    const rescueOverlay = document.getElementById("rescueOverlay");
+    const rescueSlash = document.getElementById("rescueSlash");
+    const rect = rescueOverlay.getBoundingClientRect();
+
+    gameState.rescueDragStart = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+    };
+    rescueOverlay.setPointerCapture(event.pointerId);
+
+    rescueSlash.classList.remove("hidden");
+    rescueSlash.style.left = `${gameState.rescueDragStart.x}px`;
+    rescueSlash.style.top = `${gameState.rescueDragStart.y}px`;
+    rescueSlash.style.width = "0px";
+    rescueSlash.style.transform = "rotate(0deg)";
+}
+
+function trackRescueSlice(event) {
+    if (!gameState.rescueDragStart) {
         return;
     }
 
-    hazard.cleared = true;
-    activeFish.rescueComplete = activeFish.rescueChallenge.every((entry) => entry.cleared);
-    renderRescueChallenge(activeFish);
+    const rescueOverlay = document.getElementById("rescueOverlay");
+    const rescueSlash = document.getElementById("rescueSlash");
+    const rect = rescueOverlay.getBoundingClientRect();
+    const currentPoint = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+    };
+    const deltaX = currentPoint.x - gameState.rescueDragStart.x;
+    const deltaY = currentPoint.y - gameState.rescueDragStart.y;
+    const distance = Math.hypot(deltaX, deltaY);
+    const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
 
-    if (activeFish.rescueComplete) {
+    rescueSlash.style.left = `${gameState.rescueDragStart.x}px`;
+    rescueSlash.style.top = `${gameState.rescueDragStart.y}px`;
+    rescueSlash.style.width = `${distance}px`;
+    rescueSlash.style.transform = `rotate(${angle}deg)`;
+}
+
+function endRescueSlice(event) {
+    if (!gameState.rescueDragStart) {
+        return;
+    }
+
+    const activeFish = getActiveFish();
+    const rescueOverlay = document.getElementById("rescueOverlay");
+    const rescueSlash = document.getElementById("rescueSlash");
+    const rect = rescueOverlay.getBoundingClientRect();
+    const endPoint = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+    };
+    const distance = Math.hypot(endPoint.x - gameState.rescueDragStart.x, endPoint.y - gameState.rescueDragStart.y);
+
+    if (activeFish && activeFish.phase === "learning" && !activeFish.rescueComplete && distance > rect.width * 0.35) {
+        activeFish.rescueComplete = true;
+        rescueOverlay.classList.add("sliced");
+        document.getElementById("studyPanel").classList.remove("study-panel-locked");
+        document.getElementById("learningNextBtn").disabled = false;
         showNotification(`${activeFish.data.name} is free. Continue when you're ready.`, "side");
+
+        gameState.rescueSliceTimeout = setTimeout(() => {
+            rescueOverlay.classList.add("hidden");
+            rescueOverlay.classList.remove("sliced");
+            gameState.rescueSliceTimeout = null;
+        }, 450);
     }
+
+    if (rescueOverlay.hasPointerCapture(event.pointerId)) {
+        rescueOverlay.releasePointerCapture(event.pointerId);
+    }
+
+    gameState.rescueDragStart = null;
+    rescueSlash.classList.add("hidden");
+    rescueSlash.removeAttribute("style");
 }
 
 function showQuizResult(isCorrect, activeFish) {
@@ -855,7 +781,7 @@ function handleLearningContinue() {
         return;
     }
 
-    if (!activeFish.rescueComplete) {
+    if (activeFish.needsRescue && !activeFish.rescueComplete) {
         showNotification("Clear the debris first so the fish can swim away safely.", "side");
         return;
     }
@@ -1098,7 +1024,8 @@ async function loadFishImage(fishEntry) {
             return;
         }
 
-        setImageWithFallback(imageElement, media.imageUrl || fishEntry.data.fallbackImage, fishEntry.id);
+        const resolvedImage = media.imageUrl || fishEntry.data.fallbackImage;
+        setImageWithFallback(imageElement, resolvedImage, fishEntry.id);
         sourceLink.href = media.pageUrl || fishEntry.data.sourceUrl;
     } catch (_error) {
         if (requestToken !== gameState.imageRequestToken || gameState.activeFishId !== fishEntry.id) {

@@ -93,8 +93,19 @@
                     <p id="modalKicker" class="modal-kicker">Specimen Scan</p>
                     <h2 id="modalTitle">Can you name this fish?</h2>
 
-                    <div class="fish-image-container">
+                    <div id="fishImageContainer" class="fish-image-container">
                         <img id="fishImage" src="" alt="Fish to inspect">
+                        <div id="rescueOverlay" class="rescue-overlay hidden">
+                            <div class="rescue-overlay-copy">
+                                <span class="rescue-kicker">Rescue Scan</span>
+                                <strong>Slice Through The Net</strong>
+                                <p id="rescueOverlayPrompt" class="rescue-prompt">Click, hold, and drag across the net to cut the fish free.</p>
+                            </div>
+                            <div class="rescue-net net-whole" aria-hidden="true"></div>
+                            <div class="rescue-net-half net-left" aria-hidden="true"></div>
+                            <div class="rescue-net-half net-right" aria-hidden="true"></div>
+                            <div id="rescueSlash" class="rescue-slash hidden" aria-hidden="true"></div>
+                        </div>
                     </div>
 
                     <div id="fishMeta" class="fish-meta hidden">
@@ -117,35 +128,18 @@
                     </div>
 
                     <div id="learningPanel" class="learning-panel hidden">
-                        <div class="learning-layout">
-                            <section class="rescue-panel">
-                                <div class="rescue-copy">
-                                    <span class="rescue-kicker">Rescue Scan</span>
-                                    <strong id="rescueTitle">Clear the debris around this fish</strong>
-                                    <p id="rescuePrompt" class="rescue-prompt">Tap the net, bottle loop, and stray line to help the fish swim safely again.</p>
-                                </div>
-                                <div id="rescueArea" class="rescue-area" aria-live="polite"></div>
-                                <div id="rescueLegend" class="rescue-legend" aria-live="polite"></div>
-                                <p id="rescueBenefit" class="rescue-benefit">Removing trash helps fish feed, breathe, and escape predators more easily.</p>
-                                <p id="rescueStatus" class="rescue-status">Remove every hazard to continue.</p>
-                            </section>
-
-                            <section id="studyPanel" class="study-panel study-panel-locked">
-                                <div id="studyCover" class="study-cover" aria-hidden="true">
-                                    <span class="study-cover-copy">Plastic is blocking the fish card. Rescue the fish to clear it away.</span>
-                                    <span class="study-cover-strip strip-one"></span>
-                                    <span class="study-cover-strip strip-two"></span>
-                                    <span class="study-cover-strip strip-three"></span>
-                                    <span class="study-cover-net"></span>
-                                </div>
-                                <div class="study-panel-content">
-                                    <h3 id="learningName"></h3>
-                                    <p id="learningFact" class="learning-fact"></p>
-                                    <p id="learningDescription" class="learning-description"></p>
-                                    <p id="learningDangerText" class="learning-danger-text"></p>
-                                </div>
-                            </section>
-                        </div>
+                        <section id="studyPanel" class="study-panel study-panel-locked">
+                            <div id="studyCover" class="study-cover" aria-hidden="true">
+                                <span class="study-cover-copy">A net is covering the fish photo. Cut through it above to unlock the fish card.</span>
+                                <span class="study-cover-net"></span>
+                            </div>
+                            <div class="study-panel-content">
+                                <h3 id="learningName"></h3>
+                                <p id="learningFact" class="learning-fact"></p>
+                                <p id="learningDescription" class="learning-description"></p>
+                                <p id="learningDangerText" class="learning-danger-text"></p>
+                            </div>
+                        </section>
                         <button id="learningNextBtn" type="button" disabled>Continue Mission</button>
                     </div>
 

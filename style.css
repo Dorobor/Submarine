@@ -409,7 +409,8 @@ body.modal-open {
 .choice-form.hidden,
 .learning-panel.hidden,
 .guess-form.hidden,
-.fish-meta.hidden {
+.fish-meta.hidden,
+.rescue-overlay.hidden {
     display: none;
 }
 
@@ -549,6 +550,8 @@ button:hover {
     padding: 14px;
     background: linear-gradient(180deg, rgba(120, 236, 255, 0.08), rgba(255, 255, 255, 0.03));
     border: 1px solid rgba(120, 236, 255, 0.16);
+    position: relative;
+    overflow: hidden;
 }
 
 #fishImage {
@@ -557,6 +560,92 @@ button:hover {
     object-fit: cover;
     border-radius: 14px;
     display: block;
+}
+
+.rescue-overlay {
+    position: absolute;
+    inset: 14px;
+    border-radius: 14px;
+    overflow: hidden;
+    z-index: 2;
+    cursor: crosshair;
+    background: linear-gradient(180deg, rgba(4, 20, 32, 0.22), rgba(4, 18, 28, 0.36));
+}
+
+.rescue-overlay-copy {
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    top: 18px;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: rgba(3, 18, 30, 0.62);
+    backdrop-filter: blur(4px);
+}
+
+.rescue-overlay-copy strong {
+    color: #f7fcff;
+}
+
+.rescue-overlay .rescue-prompt {
+    color: #d6edf7;
+}
+
+.rescue-net,
+.rescue-net-half {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(45deg, rgba(220, 245, 250, 0.5) 10%, transparent 10%, transparent 50%, rgba(220, 245, 250, 0.5) 50%, rgba(220, 245, 250, 0.5) 60%, transparent 60%, transparent),
+        linear-gradient(-45deg, rgba(220, 245, 250, 0.5) 10%, transparent 10%, transparent 50%, rgba(220, 245, 250, 0.5) 50%, rgba(220, 245, 250, 0.5) 60%, transparent 60%, transparent);
+    background-size: 22px 22px;
+    box-shadow: inset 0 0 0 2px rgba(220, 245, 250, 0.42);
+}
+
+.rescue-net-half {
+    opacity: 0;
+    transition: transform 0.34s ease, opacity 0.22s ease;
+}
+
+.net-left {
+    clip-path: polygon(0 0, 54% 0, 46% 100%, 0 100%);
+}
+
+.net-right {
+    clip-path: polygon(54% 0, 100% 0, 100% 100%, 46% 100%);
+}
+
+.rescue-overlay.sliced .net-whole {
+    opacity: 0;
+    transition: opacity 0.14s ease;
+}
+
+.rescue-overlay.sliced .net-left,
+.rescue-overlay.sliced .net-right {
+    opacity: 1;
+}
+
+.rescue-overlay.sliced .net-left {
+    transform: translateX(-34px) rotate(-7deg);
+}
+
+.rescue-overlay.sliced .net-right {
+    transform: translateX(34px) rotate(7deg);
+}
+
+.rescue-slash {
+    position: absolute;
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.06));
+    transform-origin: 0 50%;
+    z-index: 4;
+    pointer-events: none;
+    box-shadow: 0 0 18px rgba(255, 255, 255, 0.5);
 }
 
 .fish-meta {
@@ -614,196 +703,11 @@ button:hover {
     border: 1px solid rgba(120, 236, 255, 0.12);
 }
 
-.rescue-panel {
-    margin: 0;
-    padding: 18px;
-    border-radius: 18px;
-    background: linear-gradient(180deg, rgba(120, 236, 255, 0.08), rgba(255, 255, 255, 0.02));
-    border: 1px solid rgba(120, 236, 255, 0.14);
-}
-
-.learning-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 18px;
-    align-items: stretch;
-}
-
-.rescue-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
 .rescue-kicker {
     text-transform: uppercase;
     letter-spacing: 0.18em;
     font-size: 0.7rem;
     color: var(--accent);
-}
-
-.rescue-prompt,
-.rescue-benefit,
-.rescue-status {
-    color: var(--muted);
-    line-height: 1.6;
-}
-
-.rescue-area {
-    position: relative;
-    min-height: 320px;
-    margin: 16px 0 14px;
-    border-radius: 20px;
-    overflow: hidden;
-    background:
-        radial-gradient(circle at 50% 25%, rgba(255, 255, 255, 0.16), transparent 26%),
-        linear-gradient(180deg, rgba(17, 97, 124, 0.82), rgba(7, 39, 58, 0.94));
-    border: 1px solid rgba(120, 236, 255, 0.18);
-}
-
-.rescue-area::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-        radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.12), transparent 14%),
-        radial-gradient(circle at 82% 24%, rgba(255, 255, 255, 0.1), transparent 12%),
-        linear-gradient(180deg, rgba(120, 236, 255, 0.12), transparent 38%);
-    pointer-events: none;
-}
-
-.rescue-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 14px;
-}
-
-.rescue-chip {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(120, 236, 255, 0.12);
-    color: var(--text);
-    font-size: 0.78rem;
-}
-
-.rescue-fish {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: min(82%, 340px);
-    height: auto;
-    transform: translate(-50%, -50%);
-    z-index: 1;
-}
-
-.rescue-fish svg {
-    display: block;
-    width: 100%;
-    height: auto;
-    filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.25));
-}
-
-.rescue-fish-seahorse {
-    width: min(62%, 270px);
-}
-
-.rescue-fish-ray,
-.rescue-fish-flat {
-    width: min(86%, 360px);
-}
-
-.rescue-hazard {
-    position: absolute;
-    z-index: 2;
-    border: 0;
-    background: transparent;
-    color: transparent;
-    box-shadow: none;
-    padding: 0;
-    font-size: 0;
-    transition: opacity 0.18s ease, filter 0.18s ease;
-}
-
-.rescue-hazard:hover,
-.rescue-hazard:focus-visible {
-    transform: none;
-    box-shadow: none;
-    background: transparent;
-    filter: brightness(1.08);
-}
-
-.rescue-hazard:focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.9);
-    outline-offset: 4px;
-}
-
-.rescue-hazard::before,
-.rescue-hazard::after {
-    content: "";
-    position: absolute;
-}
-
-.hazard-net {
-    left: 50%;
-    top: 50%;
-    width: 48%;
-    height: 38%;
-    transform: translate(-50%, -54%) rotate(-6deg);
-    border-radius: 18px;
-    border: 2px solid rgba(212, 244, 251, 0.68);
-    background-image:
-        linear-gradient(45deg, rgba(212, 244, 251, 0.38) 12%, transparent 12%, transparent 50%, rgba(212, 244, 251, 0.38) 50%, rgba(212, 244, 251, 0.38) 62%, transparent 62%, transparent),
-        linear-gradient(-45deg, rgba(212, 244, 251, 0.38) 12%, transparent 12%, transparent 50%, rgba(212, 244, 251, 0.38) 50%, rgba(212, 244, 251, 0.38) 62%, transparent 62%, transparent);
-    background-size: 24px 24px;
-    box-shadow: 0 0 0 2px rgba(9, 31, 47, 0.16), 0 14px 30px rgba(0, 0, 0, 0.2);
-}
-
-.hazard-loop {
-    left: 49%;
-    top: 50%;
-    width: 27%;
-    height: 18%;
-    transform: translate(-50%, -46%) rotate(-8deg);
-    border-radius: 999px;
-    border: 10px solid rgba(255, 206, 122, 0.78);
-    box-shadow: 0 0 0 4px rgba(4, 22, 34, 0.18);
-}
-
-.hazard-line {
-    right: 17%;
-    top: 42%;
-    width: 24%;
-    height: 16%;
-}
-
-.hazard-line::before {
-    left: 0;
-    top: 50%;
-    width: 100%;
-    height: 4px;
-    border-radius: 999px;
-    background: rgba(230, 245, 248, 0.9);
-    transform: rotate(-18deg);
-    box-shadow: 0 0 0 2px rgba(10, 30, 43, 0.16);
-}
-
-.hazard-line::after {
-    right: -2px;
-    top: 30%;
-    width: 16px;
-    height: 16px;
-    border-right: 4px solid rgba(230, 245, 248, 0.95);
-    border-bottom: 4px solid rgba(230, 245, 248, 0.95);
-    border-radius: 0 0 12px 0;
-    transform: rotate(22deg);
-}
-
-.rescue-status {
-    font-weight: 700;
 }
 
 .study-panel {
@@ -1005,12 +909,8 @@ button:hover {
         max-height: calc(100vh - 24px);
     }
 
-    .learning-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .rescue-area {
-        min-height: 260px;
+    .rescue-overlay {
+        inset: 10px;
     }
 
     .toast.toast-side {
