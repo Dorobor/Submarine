@@ -8,7 +8,13 @@ const gameState = {
     activeFishId: null,
     gameOver: false,
     bubbles: [],
-    notificationTimeout: null
+    notificationTimeout: null,
+    imageCache: {},
+    imageRequestToken: 0,
+    camera: {
+        x: 0,
+        y: 0
+    }
 };
 
 let canvas;
@@ -20,16 +26,19 @@ const submarine = {
     width: 54,
     height: 28,
     vx: 0,
-    vy: 0
+    vy: 0,
+    angle: 0
 };
 
 const fish = [];
+const STATION_PHASES = ["learning", "multiple", "free"];
 
 document.addEventListener("DOMContentLoaded", () => {
     initializeGame();
     setupEventListeners();
     renderSpeciesList();
     updateStats();
+    startGame();
     gameLoop();
 });
 
@@ -46,10 +55,11 @@ function initializeGame() {
 }
 
 function createBubbles() {
-    for (let i = 0; i < 26; i += 1) {
+    gameState.bubbles.length = 0;
+    for (let i = 0; i < 70; i += 1) {
         gameState.bubbles.push({
-            x: Math.random() * GAME_CONFIG.canvasWidth,
-            y: Math.random() * GAME_CONFIG.canvasHeight,
+            x: Math.random() * GAME_CONFIG.mapWidth,
+            y: Math.random() * GAME_CONFIG.mapHeight,
             radius: 2 + Math.random() * 6,
             speed: 0.4 + Math.random() * 1.1,
             drift: (Math.random() - 0.5) * 0.7
@@ -79,8 +89,8 @@ function setupEventListeners() {
         }
     });
 
-    document.getElementById("learningNextBtn").addEventListener("click", closeGuessModal);
-    document.getElementById("nextBtn").addEventListener("click", closeGuessModal);
+    document.getElementById("learningNextBtn").addEventListener("click", handleLearningContinue);
+    document.getElementById("nextBtn").addEventListener("click", handleResultContinue);
     document.getElementById("restartBtn").addEventListener("click", showStartScreen);
 
     document.getElementById("guessModal").addEventListener("click", (event) => {
@@ -89,13 +99,10 @@ function setupEventListeners() {
         }
     });
 
-    document.querySelectorAll(".mode-card").forEach((button) => {
-        button.addEventListener("click", () => startGame(button.dataset.mode));
-    });
 }
 
-function startGame(mode) {
-    gameState.mode = mode;
+function startGame() {
+    gameState.mode = "progressive";
     gameState.started = true;
     gameState.gameOver = false;
     gameState.score = 0;
@@ -109,35 +116,22 @@ function startGame(mode) {
     renderSpeciesList();
     resetEncounterPanels();
     closeGuessModal();
-    document.getElementById("startModal").classList.add("hidden");
     document.getElementById("gameOverModal").classList.add("hidden");
-    showNotification(`${GAME_MODES[mode].intro} Use E, F, or click to inspect.`);
+    prefetchSpeciesImages();
+    showNotification("Explore the reef. Every station starts in learning mode, then relocates into multiple choice and free response.");
 }
 
 function showStartScreen() {
-    gameState.started = false;
-    gameState.gameOver = false;
-    gameState.mode = null;
-    gameState.score = 0;
-    gameState.activeFishId = null;
-    gameState.currentSpecies = [];
-    gameState.discoveredFish.clear();
-    fish.length = 0;
-    resetSubmarine();
-    closeGuessModal();
-    document.getElementById("gameOverModal").classList.add("hidden");
-    document.getElementById("startModal").classList.remove("hidden");
-    syncModeUi();
-    updateStats();
-    renderSpeciesList();
-    showNotification("Choose a mode to launch a new expedition.");
+    startGame();
 }
 
 function resetSubmarine() {
-    submarine.x = 100;
-    submarine.y = 100;
+    submarine.x = 140;
+    submarine.y = 140;
     submarine.vx = 0;
     submarine.vy = 0;
+    submarine.angle = 0;
+    updateCamera();
 }
 
 function getRandomSpeciesSelection() {
@@ -157,6 +151,7 @@ function resetFish() {
             x: positions[index].x,
             y: positions[index].y,
             discovered: false,
+            phase: STATION_PHASES[0],
             radius: 22,
             pulseOffset: Math.random() * Math.PI * 2
         });
@@ -171,14 +166,14 @@ function generateFishPositions(count) {
 
     while (positions.length < count && attempts < count * 300) {
         const candidate = {
-            x: 70 + Math.random() * (GAME_CONFIG.canvasWidth - 140),
-            y: 90 + Math.random() * (GAME_CONFIG.canvasHeight - 170)
+            x: 120 + Math.random() * (GAME_CONFIG.mapWidth - 240),
+            y: 120 + Math.random() * (GAME_CONFIG.mapHeight - 240)
         };
 
         const farEnoughFromOthers = positions.every(
             (position) => Math.hypot(position.x - candidate.x, position.y - candidate.y) > 105
         );
-        const farEnoughFromSpawn = Math.hypot(candidate.x - 120, candidate.y - 110) > 110;
+        const farEnoughFromSpawn = Math.hypot(candidate.x - 140, candidate.y - 140) > 200;
 
         if (farEnoughFromOthers && farEnoughFromSpawn) {
             positions.push(candidate);
@@ -189,8 +184,8 @@ function generateFishPositions(count) {
 
     while (positions.length < count) {
         positions.push({
-            x: 90 + (positions.length % 5) * 140,
-            y: 120 + Math.floor(positions.length / 5) * 120
+            x: 180 + (positions.length % 5) * 360,
+            y: 180 + Math.floor(positions.length / 5) * 260
         });
     }
 
@@ -220,10 +215,15 @@ function update() {
     submarine.x += submarine.vx;
     submarine.y += submarine.vy;
 
-    submarine.x = Math.max(22, Math.min(submarine.x, GAME_CONFIG.canvasWidth - submarine.width - 20));
-    submarine.y = Math.max(36, Math.min(submarine.y, GAME_CONFIG.canvasHeight - submarine.height - 28));
+    if (submarine.vx !== 0 || submarine.vy !== 0) {
+        submarine.angle = Math.atan2(submarine.vy, submarine.vx);
+    }
+
+    submarine.x = Math.max(22, Math.min(submarine.x, GAME_CONFIG.mapWidth - submarine.width - 20));
+    submarine.y = Math.max(36, Math.min(submarine.y, GAME_CONFIG.mapHeight - submarine.height - 28));
 
     updateBubbles();
+    updateCamera();
     updateHud();
 }
 
@@ -233,12 +233,12 @@ function updateBubbles() {
         bubble.x += bubble.drift;
 
         if (bubble.y + bubble.radius < 0) {
-            bubble.y = GAME_CONFIG.canvasHeight + bubble.radius;
-            bubble.x = Math.random() * GAME_CONFIG.canvasWidth;
+            bubble.y = GAME_CONFIG.mapHeight + bubble.radius;
+            bubble.x = Math.random() * GAME_CONFIG.mapWidth;
         }
 
-        if (bubble.x < -10) bubble.x = GAME_CONFIG.canvasWidth + 10;
-        if (bubble.x > GAME_CONFIG.canvasWidth + 10) bubble.x = -10;
+        if (bubble.x < -10) bubble.x = GAME_CONFIG.mapWidth + 10;
+        if (bubble.x > GAME_CONFIG.mapWidth + 10) bubble.x = -10;
     });
 }
 
@@ -272,12 +272,38 @@ function drawOcean() {
     lightGradient.addColorStop(1, "rgba(255,255,255,0)");
     ctx.fillStyle = lightGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const offsetX = -gameState.camera.x * 0.08;
+    const offsetY = -gameState.camera.y * 0.05;
+
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.lineWidth = 2;
+    for (let i = -1; i < 7; i += 1) {
+        const waveY = 80 + i * 90 + (offsetY % 90);
+        ctx.beginPath();
+        for (let x = -40; x <= canvas.width + 40; x += 30) {
+            const y = waveY + Math.sin((x + offsetX) / 70) * 8;
+            if (x === -40) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+    }
 }
 
 function drawBubbles() {
     gameState.bubbles.forEach((bubble) => {
+        const screenX = bubble.x - gameState.camera.x;
+        const screenY = bubble.y - gameState.camera.y;
+
+        if (screenX < -20 || screenX > canvas.width + 20 || screenY < -20 || screenY > canvas.height + 20) {
+            return;
+        }
+
         ctx.beginPath();
-        ctx.arc(bubble.x, bubble.y, bubble.radius, 0, Math.PI * 2);
+        ctx.arc(screenX, screenY, bubble.radius, 0, Math.PI * 2);
         ctx.fillStyle = "rgba(210, 245, 255, 0.18)";
         ctx.fill();
         ctx.strokeStyle = "rgba(210, 245, 255, 0.26)";
@@ -289,14 +315,16 @@ function drawDepthLines() {
     ctx.strokeStyle = "rgba(120, 236, 255, 0.08)";
     ctx.lineWidth = 1;
 
-    for (let y = 50; y < canvas.height; y += 70) {
+    const startY = -(gameState.camera.y % 70);
+    for (let y = startY; y < canvas.height; y += 70) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(canvas.width, y);
         ctx.stroke();
     }
 
-    for (let x = 60; x < canvas.width; x += 80) {
+    const startX = -(gameState.camera.x % 80);
+    for (let x = startX; x < canvas.width; x += 80) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, canvas.height);
@@ -307,9 +335,10 @@ function drawDepthLines() {
 function drawSeabed() {
     ctx.fillStyle = "#0a2230";
     ctx.beginPath();
-    ctx.moveTo(0, canvas.height - 42);
-    for (let x = 0; x <= canvas.width; x += 40) {
-        const y = canvas.height - 32 - Math.sin(x / 45) * 10;
+    ctx.moveTo(0, canvas.height);
+    for (let x = -40; x <= canvas.width + 40; x += 40) {
+        const worldX = x + gameState.camera.x;
+        const y = getSeabedY(worldX) - gameState.camera.y;
         ctx.lineTo(x, y);
     }
     ctx.lineTo(canvas.width, canvas.height);
@@ -319,51 +348,60 @@ function drawSeabed() {
 }
 
 function drawSubmarine() {
-    const x = submarine.x;
-    const y = submarine.y;
+    const x = submarine.x - gameState.camera.x;
+    const y = submarine.y - gameState.camera.y;
+    const centerX = x + submarine.width / 2;
+    const centerY = y + submarine.height / 2;
 
     ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(submarine.angle);
+    ctx.translate(-submarine.width / 2, -submarine.height / 2);
     ctx.shadowColor = "rgba(255, 209, 102, 0.45)";
     ctx.shadowBlur = 18;
 
     ctx.fillStyle = "#ffd166";
     ctx.beginPath();
-    ctx.ellipse(x + submarine.width / 2, y + submarine.height / 2, submarine.width / 2, submarine.height / 2, 0, 0, Math.PI * 2);
+    ctx.ellipse(submarine.width / 2, submarine.height / 2, submarine.width / 2, submarine.height / 2, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = "#f4b942";
-    ctx.fillRect(x + 10, y + 4, 22, 8);
+    ctx.fillRect(10, 4, 22, 8);
 
     ctx.fillStyle = "#7ae7ff";
     ctx.beginPath();
-    ctx.arc(x + submarine.width / 2 + 8, y + submarine.height / 2, 7, 0, Math.PI * 2);
+    ctx.arc(submarine.width / 2 + 8, submarine.height / 2, 7, 0, Math.PI * 2);
     ctx.fill();
-
-    ctx.restore();
 
     ctx.strokeStyle = "#ffd166";
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(x + submarine.width / 2 - 2, y + 2);
-    ctx.lineTo(x + submarine.width / 2 - 2, y - 12);
-    ctx.lineTo(x + submarine.width / 2 + 8, y - 12);
+    ctx.moveTo(submarine.width / 2 - 2, 2);
+    ctx.lineTo(submarine.width / 2 - 2, -12);
+    ctx.lineTo(submarine.width / 2 + 8, -12);
     ctx.stroke();
 
     ctx.fillStyle = "#ff9f1c";
     ctx.beginPath();
-    ctx.moveTo(x + submarine.width - 2, y + submarine.height / 2);
-    ctx.lineTo(x + submarine.width - 12, y + 4);
-    ctx.lineTo(x + submarine.width - 12, y + submarine.height - 4);
+    ctx.moveTo(submarine.width - 2, submarine.height / 2);
+    ctx.lineTo(submarine.width - 12, 4);
+    ctx.lineTo(submarine.width - 12, submarine.height - 4);
     ctx.closePath();
     ctx.fill();
+
+    ctx.restore();
 }
 
 function drawFish(fishEntry) {
-    const centerX = fishEntry.x;
-    const centerY = fishEntry.y;
+    const centerX = fishEntry.x - gameState.camera.x;
+    const centerY = fishEntry.y - gameState.camera.y;
     const pulse = (Math.sin(Date.now() / 280 + fishEntry.pulseOffset) + 1) / 2;
     const distance = getDistanceToSubmarine(fishEntry);
     const nearby = gameState.started && distance < GAME_CONFIG.interactionDistance;
+
+    if (centerX < -40 || centerX > canvas.width + 40 || centerY < -40 || centerY > canvas.height + 40) {
+        return;
+    }
 
     ctx.beginPath();
     ctx.arc(centerX, centerY, fishEntry.radius + pulse * 3, 0, Math.PI * 2);
@@ -399,8 +437,8 @@ function handleCanvasClick(event) {
     }
 
     const rect = canvas.getBoundingClientRect();
-    const clickX = (event.clientX - rect.left) * (canvas.width / rect.width);
-    const clickY = (event.clientY - rect.top) * (canvas.height / rect.height);
+    const clickX = (event.clientX - rect.left) * (canvas.width / rect.width) + gameState.camera.x;
+    const clickY = (event.clientY - rect.top) * (canvas.height / rect.height) + gameState.camera.y;
 
     for (const fishEntry of fish) {
         if (fishEntry.discovered) {
@@ -443,18 +481,20 @@ function showEncounterModal(fishEntry) {
     resetEncounterPanels();
 
     const modal = document.getElementById("guessModal");
-    document.getElementById("fishImage").src = fishEntry.data.image;
+    const fishImage = document.getElementById("fishImage");
+    setImageWithFallback(fishImage, fishEntry.data.fallbackImage, fishEntry.id);
+    fishImage.alt = `${fishEntry.data.name} photo`;
     document.getElementById("sourceLink").href = fishEntry.data.sourceUrl;
-    document.getElementById("modalKicker").textContent = gameState.mode === "learning" ? "Learning Card" : "Specimen Scan";
+    document.getElementById("modalKicker").textContent = getPhaseKicker(fishEntry.phase);
     document.getElementById("modalTitle").textContent = getModalTitle();
     document.getElementById("dangerBadge").className = `danger-badge ${DANGER_LEVELS[fishEntry.data.dangerLevel].className}`;
     document.getElementById("dangerBadge").textContent = `Danger: ${DANGER_LEVELS[fishEntry.data.dangerLevel].label}`;
 
-    if (gameState.mode === "free") {
+    if (fishEntry.phase === "free") {
         document.getElementById("freeResponseForm").classList.remove("hidden");
         document.getElementById("guessInput").value = "";
         document.getElementById("guessInput").focus();
-    } else if (gameState.mode === "multiple") {
+    } else if (fishEntry.phase === "multiple") {
         document.getElementById("choiceForm").classList.remove("hidden");
         renderChoiceButtons(fishEntry);
     } else {
@@ -462,12 +502,21 @@ function showEncounterModal(fishEntry) {
     }
 
     modal.classList.remove("hidden");
+    loadFishImage(fishEntry);
 }
 
 function getModalTitle() {
-    if (gameState.mode === "free") return "Type the fish name";
-    if (gameState.mode === "multiple") return "Choose the correct fish";
+    const activeFish = getActiveFish();
+    if (!activeFish) return "Inspect this fish";
+    if (activeFish.phase === "free") return "Type the fish name";
+    if (activeFish.phase === "multiple") return "Choose the correct fish";
     return "Study this fish";
+}
+
+function getPhaseKicker(phase) {
+    if (phase === "free") return "Free Response";
+    if (phase === "multiple") return "Multiple Choice";
+    return "Learning Card";
 }
 
 function resetEncounterPanels() {
@@ -486,12 +535,8 @@ function closeGuessModal() {
 }
 
 function submitGuess() {
-    if (gameState.mode !== "free") {
-        return;
-    }
-
     const activeFish = getActiveFish();
-    if (!activeFish) {
+    if (!activeFish || activeFish.phase !== "free") {
         return;
     }
 
@@ -540,11 +585,10 @@ function handleQuizOutcome(isCorrect, activeFish) {
     showQuizResult(isCorrect, activeFish);
 
     if (isCorrect) {
-        markFishDiscovered(activeFish);
-        gameState.score += GAME_MODES[gameState.mode].scorePerCorrect;
+        advanceStation(activeFish);
         updateStats();
         renderSpeciesList();
-        showNotification(`${activeFish.data.name} added to your species log.`);
+        showNotification(getAdvanceMessage(activeFish));
         checkForCompletion();
     } else {
         showNotification("Not quite. Read the fish card and keep exploring.");
@@ -552,18 +596,13 @@ function handleQuizOutcome(isCorrect, activeFish) {
 }
 
 function showLearningPanel(activeFish) {
-    markFishDiscovered(activeFish);
-    updateStats();
-    renderSpeciesList();
-    checkForCompletion();
-
     document.getElementById("fishMeta").classList.remove("hidden");
     document.getElementById("learningPanel").classList.remove("hidden");
     document.getElementById("learningName").textContent = activeFish.data.name;
     document.getElementById("learningFact").textContent = activeFish.data.shortFact;
     document.getElementById("learningDescription").textContent = activeFish.data.description;
     document.getElementById("learningDangerText").textContent = activeFish.data.dangerText;
-    showNotification(`${activeFish.data.name} logged to your learning journal.`);
+    showNotification(`Study ${activeFish.data.name}, then continue to move it into multiple-choice mode.`);
 }
 
 function showQuizResult(isCorrect, activeFish) {
@@ -585,17 +624,84 @@ function showQuizResult(isCorrect, activeFish) {
     resultDanger.textContent = activeFish.data.dangerText;
 }
 
-function markFishDiscovered(activeFish) {
-    if (gameState.discoveredFish.has(activeFish.id)) {
+function handleLearningContinue() {
+    const activeFish = getActiveFish();
+    if (!activeFish || activeFish.phase !== "learning") {
+        closeGuessModal();
+        return;
+    }
+
+    advanceStation(activeFish);
+    updateStats();
+    renderSpeciesList();
+    showNotification(`${activeFish.data.name} moved to a new location in multiple-choice mode.`);
+    closeGuessModal();
+}
+
+function handleResultContinue() {
+    closeGuessModal();
+}
+
+function advanceStation(activeFish) {
+    if (activeFish.phase === "learning") {
+        activeFish.phase = "multiple";
+        relocateFish(activeFish);
+        gameState.score += 2;
+        return;
+    }
+
+    if (activeFish.phase === "multiple") {
+        activeFish.phase = "free";
+        relocateFish(activeFish);
+        gameState.score += 5;
         return;
     }
 
     gameState.discoveredFish.add(activeFish.id);
     activeFish.discovered = true;
+    gameState.score += 10;
+}
 
-    if (gameState.mode === "learning") {
-        gameState.score = gameState.discoveredFish.size;
+function getAdvanceMessage(activeFish) {
+    if (activeFish.phase === "free") {
+        return `${activeFish.data.name} moved to a new location in free-response mode.`;
     }
+
+    return `${activeFish.data.name} fully mastered.`;
+}
+
+function relocateFish(activeFish) {
+    const position = generateRelocationPosition(activeFish);
+    activeFish.x = position.x;
+    activeFish.y = position.y;
+}
+
+function generateRelocationPosition(activeFish) {
+    let attempts = 0;
+
+    while (attempts < 400) {
+        const candidate = {
+            x: 120 + Math.random() * (GAME_CONFIG.mapWidth - 240),
+            y: 120 + Math.random() * (GAME_CONFIG.mapHeight - 240)
+        };
+
+        const farEnoughFromOldSpot = Math.hypot(candidate.x - activeFish.x, candidate.y - activeFish.y) > 650;
+        const farEnoughFromSubmarine = Math.hypot(candidate.x - submarine.x, candidate.y - submarine.y) > 420;
+        const farEnoughFromOthers = fish
+            .filter((fishEntry) => fishEntry !== activeFish && !fishEntry.discovered)
+            .every((fishEntry) => Math.hypot(candidate.x - fishEntry.x, candidate.y - fishEntry.y) > 120);
+
+        if (farEnoughFromOldSpot && farEnoughFromSubmarine && farEnoughFromOthers) {
+            return candidate;
+        }
+
+        attempts += 1;
+    }
+
+    return {
+        x: Math.max(120, Math.min(activeFish.x + 700, GAME_CONFIG.mapWidth - 120)),
+        y: Math.max(120, Math.min(activeFish.y + 420, GAME_CONFIG.mapHeight - 120))
+    };
 }
 
 function checkForCompletion() {
@@ -608,27 +714,24 @@ function updateStats() {
     const totalSpecies = gameState.currentSpecies.length || TOTAL_SPECIES_PER_GAME;
     const completedCount = gameState.discoveredFish.size;
     const progress = Math.round((completedCount / totalSpecies) * 100);
-    const modeConfig = gameState.mode ? GAME_MODES[gameState.mode] : null;
 
     document.getElementById("score").textContent = gameState.score;
     document.getElementById("caught").textContent = completedCount;
     document.getElementById("totalFish").textContent = totalSpecies;
     document.getElementById("progressPercent").textContent = `${progress}%`;
-    document.getElementById("progressText").textContent = `${completedCount} of ${totalSpecies} ${
-        modeConfig ? modeConfig.progressNoun : "species cataloged"
-    }`;
+    document.getElementById("progressText").textContent = `${completedCount} of ${totalSpecies} species mastered`;
     document.getElementById("progressFill").style.width = `${progress}%`;
-    document.getElementById("statScoreLabel").textContent = modeConfig ? modeConfig.scoreLabel : "Score";
+    document.getElementById("statScoreLabel").textContent = "Score";
 }
 
 function renderSpeciesList() {
     const speciesList = document.getElementById("speciesList");
-    const modeConfig = gameState.mode ? GAME_MODES[gameState.mode] : null;
     const displayedSpecies = gameState.currentSpecies.length ? gameState.currentSpecies : [];
     speciesList.innerHTML = "";
 
     displayedSpecies.forEach((species) => {
         const item = document.createElement("li");
+        const station = fish.find((fishEntry) => fishEntry.id === species.id);
         const discovered = gameState.discoveredFish.has(species.id);
         const danger = DANGER_LEVELS[species.dangerLevel];
 
@@ -639,10 +742,10 @@ function renderSpeciesList() {
         item.innerHTML = `
             <div class="species-copy">
                 <span>${discovered ? species.name : "Unknown Signal"}</span>
-                <small>${discovered ? species.shortFact : "Track this signal in the reef."}</small>
+                <small>${discovered ? species.shortFact : getSpeciesHint(station)}</small>
             </div>
             <div class="species-side">
-                <span class="species-status">${discovered ? (gameState.mode === "learning" ? "Studied" : "Identified") : "Pending"}</span>
+                <span class="species-status">${getSpeciesStatus(station, discovered)}</span>
                 ${discovered ? `<span class="mini-danger ${danger.className}">${danger.label}</span>` : ""}
             </div>
         `;
@@ -661,18 +764,16 @@ function renderSpeciesList() {
         speciesList.appendChild(emptyState);
     }
 
-    document.getElementById("speciesTitle").textContent = modeConfig && gameState.mode === "learning" ? "Learning Log" : "Species Log";
+    document.getElementById("speciesTitle").textContent = "Species Log";
 }
 
 function syncModeUi() {
-    const modeConfig = gameState.mode ? GAME_MODES[gameState.mode] : null;
-
-    document.getElementById("modeBadge").textContent = modeConfig ? modeConfig.title : "Choose a mode";
-    document.getElementById("heroText").textContent = modeConfig
-        ? `${modeConfig.intro} Each run samples 15 fish from a 100-species pool.`
+    document.getElementById("modeBadge").textContent = gameState.mode ? "Progressive Expedition" : "Choose a mode";
+    document.getElementById("heroText").textContent = gameState.mode
+        ? "Each station begins as a learning card, then respawns as multiple choice, then respawns again as free response."
         : "Pick a mode before launching your submarine. Each run samples 15 random fish from a 100-species pool.";
-    document.getElementById("missionText").textContent = modeConfig
-        ? modeConfig.mission
+    document.getElementById("missionText").textContent = gameState.mode
+        ? "Inspect nearby stations with E, F, or a click. Learn the fish first, then find it again for multiple choice, then again for free response."
         : "Choose a game mode first. Each new game loads 15 random fish, and you inspect nearby signals with E, F, or a click.";
 }
 
@@ -681,8 +782,8 @@ function updateHud() {
     const targetEl = document.getElementById("hudTarget");
 
     if (!gameState.started) {
-        statusEl.textContent = "Waiting to launch";
-        targetEl.textContent = "Choose a mode to begin";
+        statusEl.textContent = "Exploring";
+        targetEl.textContent = "Find a nearby signal";
         return;
     }
 
@@ -707,7 +808,7 @@ function updateHud() {
     }
 
     if (nearest.distance < GAME_CONFIG.interactionDistance) {
-        statusEl.textContent = GAME_MODES[gameState.mode].statusPrompt;
+        statusEl.textContent = getPhasePrompt(nearest.fishEntry.phase);
         targetEl.textContent = "Press E or F near the signal";
     } else {
         statusEl.textContent = "Exploring";
@@ -742,6 +843,129 @@ function showNotification(message) {
     }, 2400);
 }
 
+function prefetchSpeciesImages() {
+    gameState.currentSpecies.forEach((species) => {
+        fetchFishMedia(species).catch(() => null);
+    });
+}
+
+async function loadFishImage(fishEntry) {
+    const imageElement = document.getElementById("fishImage");
+    const sourceLink = document.getElementById("sourceLink");
+    const requestToken = ++gameState.imageRequestToken;
+
+    setImageWithFallback(imageElement, fishEntry.data.fallbackImage, fishEntry.id);
+
+    try {
+        const media = await fetchFishMedia(fishEntry.data);
+
+        if (requestToken !== gameState.imageRequestToken || gameState.activeFishId !== fishEntry.id) {
+            return;
+        }
+
+        setImageWithFallback(imageElement, media.imageUrl || fishEntry.data.fallbackImage, fishEntry.id);
+        sourceLink.href = media.pageUrl || fishEntry.data.sourceUrl;
+    } catch (_error) {
+        if (requestToken !== gameState.imageRequestToken || gameState.activeFishId !== fishEntry.id) {
+            return;
+        }
+
+        setImageWithFallback(imageElement, fishEntry.data.fallbackImage, fishEntry.id);
+        sourceLink.href = fishEntry.data.sourceUrl;
+    }
+}
+
+async function fetchFishMedia(species) {
+    if (gameState.imageCache[species.id]) {
+        return gameState.imageCache[species.id];
+    }
+
+    const exactMedia = await fetchWikipediaMediaByTitle(species.wikiQuery);
+    if (exactMedia && exactMedia.imageUrl) {
+        gameState.imageCache[species.id] = exactMedia;
+        return exactMedia;
+    }
+
+    const searchMedia = await fetchWikipediaMediaBySearch(species.wikiQuery);
+    const resolvedMedia = searchMedia || exactMedia || {
+        imageUrl: species.fallbackImage,
+        pageUrl: species.sourceUrl
+    };
+
+    gameState.imageCache[species.id] = resolvedMedia;
+    return resolvedMedia;
+}
+
+async function fetchWikipediaMediaByTitle(title) {
+    const url = `https://en.wikipedia.org/w/api.php?action=query&prop=pageimages|info&inprop=url&piprop=thumbnail&pithumbsize=640&titles=${encodeURIComponent(title)}&format=json&origin=*`;
+    const response = await fetch(url, { headers: { "Accept": "application/json" } });
+
+    if (!response.ok) {
+        throw new Error(`Wikipedia title lookup failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const pages = data && data.query && data.query.pages ? Object.values(data.query.pages) : [];
+    const page = pages.find((entry) => !entry.missing) || null;
+
+    if (!page) {
+        return null;
+    }
+
+    return {
+        imageUrl: page.thumbnail ? page.thumbnail.source : null,
+        pageUrl: page.fullurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`
+    };
+}
+
+async function fetchWikipediaMediaBySearch(query) {
+    const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=1&prop=pageimages|info&inprop=url&piprop=thumbnail&pithumbsize=640&format=json&origin=*`;
+    const response = await fetch(url, { headers: { "Accept": "application/json" } });
+
+    if (!response.ok) {
+        throw new Error(`Wikipedia search lookup failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const pages = data && data.query && data.query.pages ? Object.values(data.query.pages) : [];
+    const page = pages[0];
+
+    if (!page) {
+        return null;
+    }
+
+    return {
+        imageUrl: page.thumbnail ? page.thumbnail.source : null,
+        pageUrl: page.fullurl || null
+    };
+}
+
+function setImageWithFallback(imageElement, imageUrl, fishId) {
+    imageElement.dataset.fishId = String(fishId);
+    imageElement.dataset.fallbackIndex = "0";
+
+    imageElement.onerror = () => {
+        if (imageElement.dataset.fishId !== String(fishId)) {
+            return;
+        }
+
+        const currentIndex = Number(imageElement.dataset.fallbackIndex || "0");
+        const nextIndex = currentIndex + 1;
+        const backupImage = FALLBACK_FISH_PHOTOS[nextIndex];
+
+        if (backupImage) {
+            imageElement.dataset.fallbackIndex = String(nextIndex);
+            imageElement.src = backupImage;
+            return;
+        }
+
+        imageElement.onerror = null;
+        imageElement.src = FALLBACK_FISH_PHOTOS[0];
+    };
+
+    imageElement.src = imageUrl || FALLBACK_FISH_PHOTOS[0];
+}
+
 function getActiveFish() {
     return fish.find((fishEntry) => fishEntry.id === gameState.activeFishId);
 }
@@ -751,6 +975,39 @@ function getDistanceToSubmarine(fishEntry) {
         fishEntry.x - (submarine.x + submarine.width / 2),
         fishEntry.y - (submarine.y + submarine.height / 2)
     );
+}
+
+function updateCamera() {
+    const desiredX = submarine.x + submarine.width / 2 - canvas.width / 2;
+    const desiredY = submarine.y + submarine.height / 2 - canvas.height / 2;
+
+    gameState.camera.x = Math.max(0, Math.min(desiredX, GAME_CONFIG.mapWidth - canvas.width));
+    gameState.camera.y = Math.max(0, Math.min(desiredY, GAME_CONFIG.mapHeight - canvas.height));
+}
+
+function getSeabedY(worldX) {
+    return GAME_CONFIG.mapHeight - 85 - Math.sin(worldX / 95) * 28 - Math.cos(worldX / 220) * 20;
+}
+
+function getPhasePrompt(phase) {
+    if (phase === "free") return "Free response ready";
+    if (phase === "multiple") return "Multiple choice ready";
+    return "Learning card ready";
+}
+
+function getSpeciesStatus(station, discovered) {
+    if (discovered) return "Mastered";
+    if (!station) return "Pending";
+    if (station.phase === "free") return "Free Response";
+    if (station.phase === "multiple") return "Multiple Choice";
+    return "Learning";
+}
+
+function getSpeciesHint(station) {
+    if (!station) return "Track this signal in the reef.";
+    if (station.phase === "free") return "Find it again and type the fish name.";
+    if (station.phase === "multiple") return "Find it again for the multiple-choice round.";
+    return "Visit this station to learn the fish first.";
 }
 
 function isGuessModalOpen() {

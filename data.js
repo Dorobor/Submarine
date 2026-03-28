@@ -15,6 +15,60 @@ const DANGER_LEVELS = {
 
 const TOTAL_SPECIES_PER_GAME = 15;
 
+const FALLBACK_FISH_PHOTOS = [
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Amphiprion_ocellaris_%28Clown_anemonefish%29_by_Nick_Hobgood.jpg/640px-Amphiprion_ocellaris_%28Clown_anemonefish%29_by_Nick_Hobgood.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Pterois_volitans_Cologne_Zoo_31122014_3.jpg/640px-Pterois_volitans_Cologne_Zoo_31122014_3.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Hippocampus_hystrix_%28Spiny_seahorse%29.jpg/640px-Hippocampus_hystrix_%28Spiny_seahorse%29.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Barracuda_laban.jpg/640px-Barracuda_laban.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/TetraodonLineatus.JPG/640px-TetraodonLineatus.JPG"
+];
+
+const WIKI_QUERY_OVERRIDES = {
+    "Blue Tang": "Paracanthurus",
+    "Common Roach": "Common roach",
+    "Common Bream": "Common bream",
+    "Tench": "Tench",
+    "Zander": "Zander",
+    "European Flounder": "European flounder",
+    "Dover Sole": "Common sole",
+    "Turbot": "Turbot",
+    "European Plaice": "European plaice",
+    "Discus": "Discus (fish)",
+    "Arapaima": "Arapaima",
+    "Silver Arowana": "Silver arowana",
+    "Red-bellied Piranha": "Red-bellied piranha",
+    "Pacu": "Pacu",
+    "Oscar": "Oscar (fish)",
+    "Jewel Cichlid": "Jewel cichlid",
+    "Boeseman's Rainbowfish": "Boeseman's rainbowfish",
+    "Killifish": "Killifish",
+    "Mudskipper": "Mudskipper",
+    "Coelacanth": "Coelacanth",
+    "Beluga Sturgeon": "Beluga (sturgeon)",
+    "Alligator Gar": "Alligator gar",
+    "Bowfin": "Bowfin",
+    "Atlantic Tarpon": "Atlantic tarpon",
+    "Bonefish": "Bonefish",
+    "Permit": "Permit (fish)",
+    "Common Snook": "Common snook",
+    "Ladyfish": "Pacific ladyfish",
+    "Flathead Mullet": "Flathead grey mullet",
+    "Rabbitfish": "Rabbitfish",
+    "Squirrelfish": "Longspine squirrelfish",
+    "Moorish Idol": "Moorish idol",
+    "Pipefish": "Pipefish",
+    "Snailfish": "Snailfish",
+    "Icefish": "Channichthyidae",
+    "Gurnard": "Red gurnard",
+    "Lingcod": "Lingcod",
+    "Pollock": "Alaska pollock",
+    "Monkfish": "Lophius",
+    "Rockfish": "Rockfish",
+    "Hogfish": "Hogfish",
+    "Stonefish": "Synanceia",
+    "Archerfish": "Archerfish"
+};
+
 const FISH_SPECIES = [
     { name: "Sardine", shortFact: "a small schooling fish of the open sea", dangerLevel: "low", dangerNote: "It is not considered dangerous to people." },
     { name: "Clownfish", shortFact: "a reef fish that hides among sea anemones", dangerLevel: "low", dangerNote: "It is generally harmless to humans." },
@@ -122,40 +176,8 @@ function slugifySpeciesName(name) {
     return name.replace(/['.]/g, "").replace(/-/g, "_").replace(/\s+/g, "_");
 }
 
-function createFishIllustration(name, dangerLevel) {
-    const palette = {
-        low: ["#7ae7ff", "#135d78"],
-        medium: ["#ffd166", "#9c5d12"],
-        high: ["#ff8b94", "#7a1d2a"]
-    };
-    const [primary, secondary] = palette[dangerLevel];
-    const safeName = name.replace(/&/g, "&amp;");
-    const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420">
-            <defs>
-                <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stop-color="#06283b"/>
-                    <stop offset="100%" stop-color="#0d4057"/>
-                </linearGradient>
-                <linearGradient id="fish" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stop-color="${primary}"/>
-                    <stop offset="100%" stop-color="${secondary}"/>
-                </linearGradient>
-            </defs>
-            <rect width="640" height="420" fill="url(#bg)"/>
-            <circle cx="120" cy="90" r="110" fill="rgba(255,255,255,0.08)"/>
-            <ellipse cx="315" cy="215" rx="145" ry="78" fill="url(#fish)"/>
-            <polygon points="175,215 95,155 95,275" fill="url(#fish)"/>
-            <polygon points="305,160 365,120 360,185" fill="${primary}"/>
-            <polygon points="305,270 360,245 350,310" fill="${primary}"/>
-            <circle cx="385" cy="200" r="13" fill="#072635"/>
-            <circle cx="390" cy="196" r="4" fill="#fff"/>
-            <path d="M360 232 Q400 248 450 235" stroke="#082534" stroke-width="7" fill="none" stroke-linecap="round"/>
-            <text x="320" y="350" text-anchor="middle" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="34" font-weight="700" fill="#ecfbff">${safeName}</text>
-            <text x="320" y="384" text-anchor="middle" font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="18" fill="#b7d6e1">Species card</text>
-        </svg>
-    `;
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+function createFishFallbackPhoto(index) {
+    return FALLBACK_FISH_PHOTOS[index % FALLBACK_FISH_PHOTOS.length];
 }
 
 function buildAliases(name) {
@@ -169,7 +191,9 @@ function createFishEntry(seed, index) {
         id: index + 1,
         name: seed.name,
         aliases: buildAliases(seed.name),
-        image: createFishIllustration(seed.name, seed.dangerLevel),
+        image: null,
+        fallbackImage: createFishFallbackPhoto(index),
+        wikiQuery: WIKI_QUERY_OVERRIDES[seed.name] || seed.name,
         sourceUrl: `https://en.wikipedia.org/wiki/${slugifySpeciesName(seed.name)}`,
         description: `${seed.name} is ${seed.shortFact}. Use this entry to learn one memorable clue about how the species looks or behaves.`,
         dangerLevel: seed.dangerLevel,
@@ -223,5 +247,7 @@ const GAME_CONFIG = {
     submarineSpeed: 5,
     canvasWidth: 800,
     canvasHeight: 600,
+    mapWidth: 2400,
+    mapHeight: 1800,
     interactionDistance: 100
 };

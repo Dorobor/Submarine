@@ -14,9 +14,9 @@
                 <p class="eyebrow">Ocean Explorer Challenge</p>
                 <div class="hero-topline">
                     <h1>Submarine Fish Quest</h1>
-                    <span id="modeBadge" class="mode-badge">Choose a mode</span>
+                    <span id="modeBadge" class="mode-badge">Progressive Expedition</span>
                 </div>
-                <p id="heroText" class="hero-text">Pick a mode before launching your submarine. Each run samples 15 random fish from a 100-species pool.</p>
+                <p id="heroText" class="hero-text">Each run samples 15 random fish from a 100-species pool and turns every station into a three-step challenge.</p>
             </div>
 
             <div class="stats" aria-label="Game stats">
@@ -41,11 +41,11 @@
                     <div class="game-hud">
                         <div class="hud-chip">
                             <span class="hud-label">Status</span>
-                            <strong id="hudStatus">Waiting to launch</strong>
+                            <strong id="hudStatus">Exploring</strong>
                         </div>
                         <div class="hud-chip">
                             <span class="hud-label">Nearest Signal</span>
-                            <strong id="hudTarget">Choose a mode to begin</strong>
+                            <strong id="hudTarget">Find a nearby signal</strong>
                         </div>
                     </div>
 
@@ -66,7 +66,7 @@
             <aside class="info-panel">
                 <section class="panel-card mission-card">
                     <h2>Mission Brief</h2>
-                    <p id="missionText">Choose a game mode first. Each new game loads 15 random fish, and you inspect nearby signals with E, F, or a click.</p>
+                    <p id="missionText">Inspect nearby stations with E, F, or a click. Learn the fish first, then find it again for multiple choice, then again for free response.</p>
                 </section>
 
                 <section class="panel-card controls-card">
@@ -86,29 +86,6 @@
             </aside>
 
             <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-
-            <div id="startModal" class="modal">
-                <div class="modal-content start-content">
-                    <p class="modal-kicker">Select Your Mission</p>
-                    <h2>Choose how you want to explore</h2>
-                    <p class="start-copy">Each mode uses the same reef, but each new game pulls 15 random species from a 100-fish pool.</p>
-
-                    <div class="mode-grid">
-                        <button class="mode-card" data-mode="free" type="button">
-                            <span class="mode-name">Free Response</span>
-                            <span class="mode-description">Type the fish name yourself for the highest challenge.</span>
-                        </button>
-                        <button class="mode-card" data-mode="multiple" type="button">
-                            <span class="mode-name">Multiple Choice</span>
-                            <span class="mode-description">Choose from four answers after each scan.</span>
-                        </button>
-                        <button class="mode-card" data-mode="learning" type="button">
-                            <span class="mode-name">Learning Mode</span>
-                            <span class="mode-description">Study photos, facts, and danger levels without guessing.</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
 
             <div id="guessModal" class="modal hidden">
                 <div class="modal-content">
@@ -163,7 +140,7 @@
                     <h2 id="gameOverTitle">Reef fully cataloged</h2>
                     <p id="gameOverText">You identified every creature in the area.</p>
                     <p id="finalScore"></p>
-                    <button id="restartBtn" type="button">Choose Another Mode</button>
+                    <button id="restartBtn" type="button">Start New Expedition</button>
                 </div>
             </div>
         </main>
