@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bay Explorer Submarine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Manrope:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hud-card">
+        <p class="eyebrow">California Bay Explorer</p>
+        <h1>Discover Bay Area Marine Life</h1>
+        <p class="instructions">
+          Navigate with <span>WASD</span> or <span>Arrow Keys</span>. Approach a glowing creature and press
+          <span>F</span> to identify it.
+        </p>
+        <div class="legend">
+          <span><i class="legend-dot submarine-dot"></i> Your submarine</span>
+          <span><i class="legend-dot fish-dot"></i> Discoverable creature</span>
+        </div>
+      </section>
+
+      <section class="game-panel">
+        <canvas id="gameCanvas" width="960" height="540" aria-label="Submarine exploration game"></canvas>
+        <div class="game-tip" id="interactionPrompt">Find marine life near the kelp beds.</div>
+      </section>
+    </main>
+
+    <div class="modal-backdrop hidden" id="quizModal" role="dialog" aria-modal="true" aria-labelledby="quizTitle">
+      <div class="modal-card">
+        <button class="modal-close" id="closeModal" aria-label="Close quiz">×</button>
+        <div class="modal-grid">
+          <div class="modal-image-wrap">
+            <img id="fishImage" alt="" />
+          </div>
+          <div class="modal-content">
+            <p class="modal-kicker">Marine Life Scan</p>
+            <h2 id="quizTitle">What is this fish?</h2>
+            <p class="modal-subtitle" id="fishLocation"></p>
+            <div class="answer-grid" id="answerButtons"></div>
+            <p class="feedback" id="feedbackMessage"></p>
+            <div class="modal-actions">
+              <a id="learnMoreLink" class="learn-more" href="#" target="_blank" rel="noreferrer noopener">Learn More</a>
+              <button id="nextPrompt" class="secondary-button">Keep Exploring</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/game.js"></script>
+  </body>
+</html>
