@@ -9,6 +9,9 @@ const gameState = {
     gameOver: false,
     bubbles: [],
     notificationTimeout: null,
+    postModalNotification: null,
+    rescueDragStart: null,
+    rescueSliceTimeout: null,
     imageCache: {},
     imageRequestToken: 0,
     camera: {
@@ -32,7 +35,6 @@ const submarine = {
 
 const fish = [];
 const STATION_PHASES = ["learning", "multiple", "free"];
-
 document.addEventListener("DOMContentLoaded", () => {
     initializeGame();
     setupEventListeners();
@@ -92,6 +94,11 @@ function setupEventListeners() {
     document.getElementById("learningNextBtn").addEventListener("click", handleLearningContinue);
     document.getElementById("nextBtn").addEventListener("click", handleResultContinue);
     document.getElementById("restartBtn").addEventListener("click", showStartScreen);
+    document.getElementById("pollutionInfoBtn").addEventListener("click", closePollutionInfoOverlay);
+    document.getElementById("rescueOverlay").addEventListener("pointerdown", beginRescueSlice);
+    document.getElementById("rescueOverlay").addEventListener("pointermove", trackRescueSlice);
+    document.getElementById("rescueOverlay").addEventListener("pointerup", endRescueSlice);
+    document.getElementById("rescueOverlay").addEventListener("pointercancel", endRescueSlice);
 
     document.getElementById("guessModal").addEventListener("click", (event) => {
         if (event.target.id === "guessModal") {
@@ -153,7 +160,10 @@ function resetFish() {
             discovered: false,
             phase: STATION_PHASES[0],
             radius: 22,
-            pulseOffset: Math.random() * Math.PI * 2
+            pulseOffset: Math.random() * Math.PI * 2,
+            needsRescue: Math.random() < 0.1,
+            rescueComplete: false,
+            pollutionInfoSeen: false
         });
     });
 
@@ -244,12 +254,9 @@ function updateBubbles() {
 
 function draw() {
     drawOcean();
-    drawLightRays();
     drawBubbles();
     drawDepthLines();
-    drawCaustics();
     drawSeabed();
-    drawSeabedDecor();
 
     fish.forEach((fishEntry) => {
         if (!fishEntry.discovered) {
@@ -258,152 +265,88 @@ function draw() {
     });
 
     if (gameState.started) {
-        drawSubmarineGlow();
         drawSubmarine();
     }
-
-    drawVignette();
 }
 
 function drawOcean() {
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, "#1a6b85");
-    gradient.addColorStop(0.2, "#145a72");
-    gradient.addColorStop(0.45, "#0c3e56");
-    gradient.addColorStop(0.7, "#072a3d");
-    gradient.addColorStop(1, "#03141f");
+    gradient.addColorStop(0, "#1b657f");
+    gradient.addColorStop(0.45, "#0e4056");
+    gradient.addColorStop(1, "#05131f");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const lightGradient = ctx.createRadialGradient(canvas.width * 0.35, 30, 10, canvas.width * 0.35, 30, 320);
-    lightGradient.addColorStop(0, "rgba(180,240,255,0.22)");
-    lightGradient.addColorStop(0.4, "rgba(120,220,255,0.08)");
-    lightGradient.addColorStop(1, "rgba(120,220,255,0)");
+    const lightGradient = ctx.createRadialGradient(canvas.width * 0.35, 60, 10, canvas.width * 0.35, 60, 260);
+    lightGradient.addColorStop(0, "rgba(255,255,255,0.20)");
+    lightGradient.addColorStop(1, "rgba(255,255,255,0)");
     ctx.fillStyle = lightGradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const secondLight = ctx.createRadialGradient(canvas.width * 0.75, 0, 5, canvas.width * 0.75, 0, 200);
-    secondLight.addColorStop(0, "rgba(255,255,220,0.1)");
-    secondLight.addColorStop(1, "rgba(255,255,220,0)");
-    ctx.fillStyle = secondLight;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const offsetX = -gameState.camera.x * 0.08;
     const offsetY = -gameState.camera.y * 0.05;
-    const time = Date.now() / 2000;
 
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.lineWidth = 2;
     for (let i = -1; i < 7; i += 1) {
-        const waveY = 80 + i * 95 + (offsetY % 95);
-        const alpha = 0.04 + Math.sin(time + i * 0.5) * 0.015;
-        ctx.strokeStyle = `rgba(180,240,255,${alpha})`;
+        const waveY = 80 + i * 90 + (offsetY % 90);
         ctx.beginPath();
-        for (let x = -40; x <= canvas.width + 40; x += 20) {
-            const y = waveY + Math.sin((x + offsetX + time * 30) / 80) * 10 + Math.cos((x + offsetX) / 130) * 5;
-            if (x === -40) { ctx.moveTo(x, y); } else { ctx.lineTo(x, y); }
+        for (let x = -40; x <= canvas.width + 40; x += 30) {
+            const y = waveY + Math.sin((x + offsetX) / 70) * 8;
+            if (x === -40) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
         }
         ctx.stroke();
     }
-}
-
-function drawLightRays() {
-    const time = Date.now() / 4000;
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    for (let i = 0; i < 5; i++) {
-        const baseX = (i * 200 + 80) - (gameState.camera.x * 0.12) % (canvas.width + 100);
-        const sway = Math.sin(time + i * 1.2) * 25;
-        const rayX = baseX + sway;
-        const alpha = 0.025 + Math.sin(time * 0.7 + i * 0.8) * 0.012;
-        const width = 30 + Math.sin(time + i) * 8;
-        const grad = ctx.createLinearGradient(rayX, 0, rayX, canvas.height * 0.85);
-        grad.addColorStop(0, `rgba(180,240,255,${alpha * 2.5})`);
-        grad.addColorStop(0.3, `rgba(120,220,255,${alpha * 1.5})`);
-        grad.addColorStop(0.6, `rgba(80,180,220,${alpha * 0.6})`);
-        grad.addColorStop(1, "rgba(80,180,220,0)");
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.moveTo(rayX - width * 0.3, 0);
-        ctx.lineTo(rayX + width * 0.3, 0);
-        ctx.lineTo(rayX + width + sway * 0.5, canvas.height * 0.85);
-        ctx.lineTo(rayX - width + sway * 0.5, canvas.height * 0.85);
-        ctx.closePath();
-        ctx.fill();
-    }
-    ctx.restore();
-}
-
-function drawCaustics() {
-    const time = Date.now() / 1800;
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.04;
-    const offsetX = gameState.camera.x * 0.3;
-    const offsetY = gameState.camera.y * 0.3;
-    for (let i = 0; i < 12; i++) {
-        const cx = ((i * 120 + Math.sin(time + i) * 40) - offsetX) % (canvas.width + 120) - 60;
-        const cy = canvas.height * 0.65 + Math.cos(time * 0.7 + i * 0.9) * 30 + ((i * 50 - offsetY) % 200);
-        const size = 20 + Math.sin(time + i * 1.5) * 8;
-        ctx.fillStyle = "rgba(140, 230, 255, 1)";
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - size);
-        ctx.quadraticCurveTo(cx + size, cy - size * 0.3, cx + size * 0.6, cy + size * 0.5);
-        ctx.quadraticCurveTo(cx, cy + size * 0.3, cx - size * 0.6, cy + size * 0.5);
-        ctx.quadraticCurveTo(cx - size, cy - size * 0.3, cx, cy - size);
-        ctx.fill();
-    }
-    ctx.restore();
 }
 
 function drawBubbles() {
     gameState.bubbles.forEach((bubble) => {
         const screenX = bubble.x - gameState.camera.x;
         const screenY = bubble.y - gameState.camera.y;
-        if (screenX < -20 || screenX > canvas.width + 20 || screenY < -20 || screenY > canvas.height + 20) return;
-        const shimmer = 0.12 + Math.sin(Date.now() / 600 + bubble.x) * 0.06;
+
+        if (screenX < -20 || screenX > canvas.width + 20 || screenY < -20 || screenY > canvas.height + 20) {
+            return;
+        }
+
         ctx.beginPath();
         ctx.arc(screenX, screenY, bubble.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(190, 240, 255, ${shimmer})`;
+        ctx.fillStyle = "rgba(210, 245, 255, 0.18)";
         ctx.fill();
-        ctx.strokeStyle = `rgba(210, 250, 255, ${shimmer + 0.1})`;
-        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = "rgba(210, 245, 255, 0.26)";
         ctx.stroke();
-        if (bubble.radius > 4) {
-            ctx.beginPath();
-            ctx.arc(screenX - bubble.radius * 0.25, screenY - bubble.radius * 0.3, bubble.radius * 0.25, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(255, 255, 255, ${shimmer * 0.8})`;
-            ctx.fill();
-        }
     });
 }
 
 function drawDepthLines() {
-    const time = Date.now() / 5000;
+    ctx.strokeStyle = "rgba(120, 236, 255, 0.08)";
+    ctx.lineWidth = 1;
+
     const startY = -(gameState.camera.y % 70);
     for (let y = startY; y < canvas.height; y += 70) {
-        const alpha = 0.04 + Math.sin(time + y * 0.01) * 0.015;
-        ctx.strokeStyle = `rgba(94, 228, 255, ${alpha})`;
-        ctx.lineWidth = 0.5;
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
     }
+
     const startX = -(gameState.camera.x % 80);
     for (let x = startX; x < canvas.width; x += 80) {
-        const alpha = 0.03 + Math.sin(time + x * 0.01) * 0.01;
-        ctx.strokeStyle = `rgba(94, 228, 255, ${alpha})`;
-        ctx.lineWidth = 0.5;
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
     }
 }
 
 function drawSeabed() {
-    const seabedGrad = ctx.createLinearGradient(0, canvas.height * 0.75, 0, canvas.height);
-    seabedGrad.addColorStop(0, "#0b2636");
-    seabedGrad.addColorStop(0.5, "#0a1f2c");
-    seabedGrad.addColorStop(1, "#061520");
-    ctx.fillStyle = seabedGrad;
+    ctx.fillStyle = "#0a2230";
     ctx.beginPath();
     ctx.moveTo(0, canvas.height);
-    for (let x = -40; x <= canvas.width + 40; x += 20) {
+    for (let x = -40; x <= canvas.width + 40; x += 40) {
         const worldX = x + gameState.camera.x;
         const y = getSeabedY(worldX) - gameState.camera.y;
         ctx.lineTo(x, y);
@@ -412,78 +355,6 @@ function drawSeabed() {
     ctx.lineTo(0, canvas.height);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = "rgba(94, 228, 255, 0.08)";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    for (let x = -40; x <= canvas.width + 40; x += 20) {
-        const worldX = x + gameState.camera.x;
-        const y = getSeabedY(worldX) - gameState.camera.y;
-        if (x === -40) { ctx.moveTo(x, y); } else { ctx.lineTo(x, y); }
-    }
-    ctx.stroke();
-}
-
-function drawSeabedDecor() {
-    if (!gameState._seabedDecor) {
-        gameState._seabedDecor = [];
-        for (let i = 0; i < 50; i++) {
-            gameState._seabedDecor.push({
-                worldX: 60 + Math.random() * (GAME_CONFIG.mapWidth - 120),
-                type: Math.random() < 0.5 ? "kelp" : "coral",
-                height: 18 + Math.random() * 36,
-                width: 6 + Math.random() * 10,
-                hue: Math.random() < 0.4 ? 170 + Math.random() * 30 : (Math.random() < 0.5 ? 30 + Math.random() * 20 : 340 + Math.random() * 30),
-                sway: Math.random() * Math.PI * 2,
-                alpha: 0.25 + Math.random() * 0.2
-            });
-        }
-    }
-    const time = Date.now() / 1200;
-    gameState._seabedDecor.forEach((decor) => {
-        const screenX = decor.worldX - gameState.camera.x;
-        if (screenX < -30 || screenX > canvas.width + 30) return;
-        const baseY = getSeabedY(decor.worldX) - gameState.camera.y;
-        const swayAmount = Math.sin(time + decor.sway) * 4;
-        if (decor.type === "kelp") {
-            ctx.save();
-            ctx.strokeStyle = `hsla(${decor.hue}, 55%, 35%, ${decor.alpha})`;
-            ctx.lineWidth = decor.width * 0.4;
-            ctx.lineCap = "round";
-            ctx.beginPath();
-            ctx.moveTo(screenX, baseY);
-            ctx.quadraticCurveTo(screenX + swayAmount * 1.5, baseY - decor.height * 0.5, screenX + swayAmount * 2.5, baseY - decor.height);
-            ctx.stroke();
-            ctx.restore();
-        } else {
-            ctx.save();
-            ctx.fillStyle = `hsla(${decor.hue}, 60%, 45%, ${decor.alpha * 0.8})`;
-            ctx.beginPath(); ctx.arc(screenX, baseY - 4, decor.width * 0.6, Math.PI, 0); ctx.fill();
-            ctx.fillStyle = `hsla(${decor.hue + 15}, 50%, 55%, ${decor.alpha * 0.6})`;
-            ctx.beginPath(); ctx.arc(screenX + decor.width * 0.3, baseY - 6, decor.width * 0.4, Math.PI, 0); ctx.fill();
-            ctx.restore();
-        }
-    });
-}
-
-function drawVignette() {
-    const vignetteGrad = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.width * 0.25, canvas.width / 2, canvas.height / 2, canvas.width * 0.72);
-    vignetteGrad.addColorStop(0, "rgba(0,0,0,0)");
-    vignetteGrad.addColorStop(1, "rgba(0,0,0,0.3)");
-    ctx.fillStyle = vignetteGrad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
-
-function drawSubmarineGlow() {
-    const x = submarine.x - gameState.camera.x;
-    const y = submarine.y - gameState.camera.y;
-    const cx = x + submarine.width / 2;
-    const cy = y + submarine.height / 2;
-    const glowGrad = ctx.createRadialGradient(cx, cy, 5, cx, cy, 80);
-    glowGrad.addColorStop(0, "rgba(255, 209, 102, 0.15)");
-    glowGrad.addColorStop(0.5, "rgba(255, 209, 102, 0.05)");
-    glowGrad.addColorStop(1, "rgba(255, 209, 102, 0)");
-    ctx.fillStyle = glowGrad;
-    ctx.fillRect(cx - 80, cy - 80, 160, 160);
 }
 
 function drawSubmarine() {
@@ -491,105 +362,40 @@ function drawSubmarine() {
     const y = submarine.y - gameState.camera.y;
     const centerX = x + submarine.width / 2;
     const centerY = y + submarine.height / 2;
-    const time = Date.now() / 300;
-    const bob = Math.sin(time * 0.3) * 1.5;
 
     ctx.save();
-    ctx.translate(centerX, centerY + bob);
+    ctx.translate(centerX, centerY);
     ctx.rotate(submarine.angle);
     ctx.translate(-submarine.width / 2, -submarine.height / 2);
+    ctx.shadowColor = "rgba(255, 209, 102, 0.45)";
+    ctx.shadowBlur = 18;
 
-    // Spotlight beam
-    ctx.save();
-    ctx.globalAlpha = 0.12;
-    const spotGrad = ctx.createLinearGradient(submarine.width * 0.7, submarine.height / 2, submarine.width * 0.7 + 100, submarine.height / 2);
-    spotGrad.addColorStop(0, "rgba(180, 240, 255, 1)");
-    spotGrad.addColorStop(1, "rgba(180, 240, 255, 0)");
-    ctx.fillStyle = spotGrad;
-    ctx.beginPath();
-    ctx.moveTo(submarine.width * 0.7, submarine.height / 2 - 3);
-    ctx.lineTo(submarine.width * 0.7 + 100, submarine.height / 2 - 18);
-    ctx.lineTo(submarine.width * 0.7 + 100, submarine.height / 2 + 18);
-    ctx.lineTo(submarine.width * 0.7, submarine.height / 2 + 3);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-
-    ctx.shadowColor = "rgba(255, 209, 102, 0.5)";
-    ctx.shadowBlur = 22;
-    ctx.shadowOffsetY = 2;
-
-    const bodyGrad = ctx.createLinearGradient(0, 0, 0, submarine.height);
-    bodyGrad.addColorStop(0, "#ffe08a");
-    bodyGrad.addColorStop(0.4, "#ffd166");
-    bodyGrad.addColorStop(1, "#e6a82e");
-    ctx.fillStyle = bodyGrad;
+    ctx.fillStyle = "#ffd166";
     ctx.beginPath();
     ctx.ellipse(submarine.width / 2, submarine.height / 2, submarine.width / 2, submarine.height / 2, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.shadowColor = "transparent";
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetY = 0;
+    ctx.fillStyle = "#f4b942";
+    ctx.fillRect(10, 4, 22, 8);
 
-    // Body highlight
-    ctx.save();
-    ctx.globalAlpha = 0.35;
-    ctx.fillStyle = "#fff6d5";
+    ctx.fillStyle = "#7ae7ff";
     ctx.beginPath();
-    ctx.ellipse(submarine.width / 2 - 4, submarine.height * 0.28, submarine.width * 0.32, submarine.height * 0.18, -0.15, 0, Math.PI * 2);
+    ctx.arc(submarine.width / 2 + 8, submarine.height / 2, 7, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
 
-    // Viewport frame + glass
-    ctx.fillStyle = "#c98e1a";
-    ctx.beginPath(); ctx.arc(submarine.width / 2 + 8, submarine.height / 2, 9, 0, Math.PI * 2); ctx.fill();
-    const glassGrad = ctx.createRadialGradient(submarine.width / 2 + 6, submarine.height / 2 - 2, 1, submarine.width / 2 + 8, submarine.height / 2, 7);
-    glassGrad.addColorStop(0, "#c8f8ff");
-    glassGrad.addColorStop(0.6, "#5ee4ff");
-    glassGrad.addColorStop(1, "#2ab5d4");
-    ctx.fillStyle = glassGrad;
-    ctx.beginPath(); ctx.arc(submarine.width / 2 + 8, submarine.height / 2, 7, 0, Math.PI * 2); ctx.fill();
-
-    // Glass reflection
-    ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = "#ffffff";
-    ctx.beginPath(); ctx.arc(submarine.width / 2 + 6, submarine.height / 2 - 2, 2, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-
-    // Conning tower
-    const towerGrad = ctx.createLinearGradient(submarine.width / 2 - 5, -14, submarine.width / 2 + 10, -14);
-    towerGrad.addColorStop(0, "#ffd166"); towerGrad.addColorStop(1, "#e6a82e");
-    ctx.fillStyle = towerGrad;
-    ctx.beginPath(); ctx.roundRect(submarine.width / 2 - 5, -10, 14, 14, [3, 3, 0, 0]); ctx.fill();
-
-    // Periscope
-    ctx.strokeStyle = "#c98e1a"; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+    ctx.strokeStyle = "#ffd166";
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(submarine.width / 2 + 1, -10);
-    ctx.lineTo(submarine.width / 2 + 1, -18);
-    ctx.lineTo(submarine.width / 2 + 8, -18);
+    ctx.moveTo(submarine.width / 2 - 2, 2);
+    ctx.lineTo(submarine.width / 2 - 2, -12);
+    ctx.lineTo(submarine.width / 2 + 8, -12);
     ctx.stroke();
 
-    // Propeller
-    ctx.save();
-    ctx.translate(submarine.width - 2, submarine.height / 2);
-    ctx.rotate(time * 3);
-    ctx.fillStyle = "#b58216";
-    for (let blade = 0; blade < 3; blade++) {
-        ctx.save(); ctx.rotate((blade * Math.PI * 2) / 3);
-        ctx.beginPath(); ctx.ellipse(0, -6, 2, 5, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-    }
-    ctx.restore();
-
-    // Tail fin
-    const tailGrad = ctx.createLinearGradient(submarine.width - 14, 2, submarine.width - 14, submarine.height - 2);
-    tailGrad.addColorStop(0, "#f4a81e"); tailGrad.addColorStop(1, "#e08c16");
-    ctx.fillStyle = tailGrad;
+    ctx.fillStyle = "#ff9f1c";
     ctx.beginPath();
-    ctx.moveTo(submarine.width - 4, submarine.height / 2);
-    ctx.lineTo(submarine.width - 14, 2);
-    ctx.lineTo(submarine.width - 14, submarine.height - 2);
+    ctx.moveTo(submarine.width - 2, submarine.height / 2);
+    ctx.lineTo(submarine.width - 12, 4);
+    ctx.lineTo(submarine.width - 12, submarine.height - 4);
     ctx.closePath();
     ctx.fill();
 
@@ -599,63 +405,40 @@ function drawSubmarine() {
 function drawFish(fishEntry) {
     const centerX = fishEntry.x - gameState.camera.x;
     const centerY = fishEntry.y - gameState.camera.y;
-    const time = Date.now();
-    const pulse = (Math.sin(time / 280 + fishEntry.pulseOffset) + 1) / 2;
+    const pulse = (Math.sin(Date.now() / 280 + fishEntry.pulseOffset) + 1) / 2;
     const distance = getDistanceToSubmarine(fishEntry);
     const nearby = gameState.started && distance < GAME_CONFIG.interactionDistance;
-    const bob = Math.sin(time / 800 + fishEntry.pulseOffset) * 2;
 
-    if (centerX < -50 || centerX > canvas.width + 50 || centerY < -50 || centerY > canvas.height + 50) return;
-
-    // Sonar rings when nearby
-    if (nearby) {
-        const sonarPhase = (time / 1200 + fishEntry.pulseOffset) % 1;
-        for (let ring = 0; ring < 2; ring++) {
-            const ringPhase = (sonarPhase + ring * 0.5) % 1;
-            const ringRadius = fishEntry.radius + 8 + ringPhase * 30;
-            const ringAlpha = (1 - ringPhase) * 0.35;
-            ctx.beginPath(); ctx.arc(centerX, centerY + bob, ringRadius, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(94, 228, 255, ${ringAlpha})`;
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-        }
+    if (centerX < -40 || centerX > canvas.width + 40 || centerY < -40 || centerY > canvas.height + 40) {
+        return;
     }
 
-    // Outer glow
-    const glowRadius = fishEntry.radius + 6 + pulse * 5;
-    const glowGrad = ctx.createRadialGradient(centerX, centerY + bob, fishEntry.radius * 0.5, centerX, centerY + bob, glowRadius);
-    if (nearby) {
-        glowGrad.addColorStop(0, "rgba(94, 228, 255, 0.15)"); glowGrad.addColorStop(1, "rgba(94, 228, 255, 0)");
-    } else {
-        glowGrad.addColorStop(0, "rgba(255, 255, 255, 0.05)"); glowGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
-    }
-    ctx.beginPath(); ctx.arc(centerX, centerY + bob, glowRadius, 0, Math.PI * 2);
-    ctx.fillStyle = glowGrad; ctx.fill();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, fishEntry.radius + pulse * 3, 0, Math.PI * 2);
+    ctx.fillStyle = nearby ? "rgba(120, 236, 255, 0.20)" : "rgba(255, 255, 255, 0.06)";
+    ctx.fill();
 
-    // Main circle
-    const circleGrad = ctx.createRadialGradient(centerX - 3, centerY + bob - 3, 2, centerX, centerY + bob, fishEntry.radius);
-    if (nearby) { circleGrad.addColorStop(0, "#1a4860"); circleGrad.addColorStop(1, "#0a2535"); }
-    else { circleGrad.addColorStop(0, "#405e6e"); circleGrad.addColorStop(1, "#2a4050"); }
-    ctx.beginPath(); ctx.arc(centerX, centerY + bob, fishEntry.radius, 0, Math.PI * 2);
-    ctx.fillStyle = circleGrad; ctx.fill();
-    ctx.strokeStyle = nearby ? `rgba(94, 228, 255, ${0.7 + pulse * 0.3})` : "rgba(255, 255, 255, 0.14)";
-    ctx.lineWidth = nearby ? 2.5 : 1.5;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, fishEntry.radius, 0, Math.PI * 2);
+    ctx.fillStyle = nearby ? "#0d2d40" : "#355464";
+    ctx.fill();
+    ctx.strokeStyle = nearby ? "rgba(122, 231, 255, 0.95)" : "rgba(255, 255, 255, 0.18)";
+    ctx.lineWidth = nearby ? 3 : 2;
     ctx.stroke();
 
-    // Phase indicator dot
-    const phaseColors = { learning: "#5ee4ff", multiple: "#ffd166", free: "#ff8b94" };
-    const phaseColor = phaseColors[fishEntry.phase] || "#5ee4ff";
-    ctx.beginPath(); ctx.arc(centerX, centerY + bob - fishEntry.radius - 6, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = phaseColor; ctx.shadowColor = phaseColor; ctx.shadowBlur = 8; ctx.fill();
-    ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
-
-    // Phase icon
     ctx.fillStyle = "#ffffff";
-    ctx.font = `bold ${nearby ? 20 : 18}px Inter, sans-serif`;
+    ctx.font = "bold 26px Trebuchet MS";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const icon = fishEntry.phase === "learning" ? "\uD83D\uDCD6" : fishEntry.phase === "multiple" ? "\uD83D\uDD0D" : "\u270F\uFE0F";
-    ctx.fillText(icon, centerX, centerY + bob + 1);
+    ctx.fillText("?", centerX, centerY + 1);
+
+    if (nearby) {
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, fishEntry.radius + 10 + pulse * 6, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(122, 231, 255, 0.45)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
 }
 
 function handleCanvasClick(event) {
@@ -708,6 +491,7 @@ function showEncounterModal(fishEntry) {
     resetEncounterPanels();
 
     const modal = document.getElementById("guessModal");
+    const modalContent = modal.querySelector(".modal-content");
     const fishImage = document.getElementById("fishImage");
     setImageWithFallback(fishImage, fishEntry.data.fallbackImage, fishEntry.id);
     fishImage.alt = `${fishEntry.data.name} photo`;
@@ -716,7 +500,7 @@ function showEncounterModal(fishEntry) {
     document.getElementById("modalTitle").textContent = getModalTitle();
     document.getElementById("dangerBadge").className = `danger-badge ${DANGER_LEVELS[fishEntry.data.dangerLevel].className}`;
     document.getElementById("dangerBadge").textContent = `Danger: ${DANGER_LEVELS[fishEntry.data.dangerLevel].label}`;
-
+    modalContent.classList.toggle("modal-content-learning", fishEntry.phase === "learning");
     if (fishEntry.phase === "free") {
         document.getElementById("freeResponseForm").classList.remove("hidden");
         document.getElementById("guessInput").value = "";
@@ -728,6 +512,8 @@ function showEncounterModal(fishEntry) {
         showLearningPanel(fishEntry);
     }
 
+    document.body.classList.add("modal-open");
+    modalContent.scrollTop = 0;
     modal.classList.remove("hidden");
     loadFishImage(fishEntry);
 }
@@ -754,11 +540,31 @@ function resetEncounterPanels() {
     document.getElementById("result").classList.remove("correct", "wrong");
     document.getElementById("fishMeta").classList.add("hidden");
     document.getElementById("choiceButtons").innerHTML = "";
+    document.getElementById("rescueOverlay").classList.add("hidden");
+    document.getElementById("rescueOverlay").classList.remove("sliced");
+    document.getElementById("rescueSlash").classList.add("hidden");
+    document.getElementById("rescueSlash").removeAttribute("style");
+    document.getElementById("pollutionInfoOverlay").classList.add("hidden");
+    document.getElementById("studyPanel").classList.add("study-panel-locked");
+    document.querySelector("#guessModal .modal-content").classList.remove("modal-content-learning");
+    gameState.rescueDragStart = null;
+
+    if (gameState.rescueSliceTimeout) {
+        clearTimeout(gameState.rescueSliceTimeout);
+        gameState.rescueSliceTimeout = null;
+    }
 }
 
 function closeGuessModal() {
     document.getElementById("guessModal").classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    const queuedNotification = gameState.postModalNotification;
+    gameState.postModalNotification = null;
     gameState.activeFishId = null;
+
+    if (queuedNotification) {
+        showNotification(queuedNotification);
+    }
 }
 
 function submitGuess() {
@@ -815,7 +621,12 @@ function handleQuizOutcome(isCorrect, activeFish) {
         advanceStation(activeFish);
         updateStats();
         renderSpeciesList();
-        showNotification(getAdvanceMessage(activeFish));
+        const advanceMessage = getAdvanceMessage(activeFish);
+        if (advanceMessage.includes("moved to a new location")) {
+            gameState.postModalNotification = advanceMessage;
+        } else {
+            showNotification(advanceMessage);
+        }
         checkForCompletion();
     } else {
         showNotification("Not quite. Read the fish card and keep exploring.");
@@ -828,8 +639,153 @@ function showLearningPanel(activeFish) {
     document.getElementById("learningName").textContent = activeFish.data.name;
     document.getElementById("learningFact").textContent = activeFish.data.shortFact;
     document.getElementById("learningDescription").textContent = activeFish.data.description;
+    renderRescueChallenge(activeFish);
     document.getElementById("learningDangerText").textContent = activeFish.data.dangerText;
-    showNotification(`Study ${activeFish.data.name}, then continue to move it into multiple-choice mode.`);
+    if (activeFish.needsRescue && !activeFish.rescueComplete) {
+        showNotification(
+            `Click, hold, and drag across the net to free ${activeFish.data.name}.`,
+            "side"
+        );
+    } else {
+        showNotification(
+            `Study ${activeFish.data.name}, then continue to move it into multiple-choice mode.`,
+            "side"
+        );
+    }
+}
+
+function renderRescueChallenge(activeFish) {
+    const rescueOverlay = document.getElementById("rescueOverlay");
+    const rescueOverlayPrompt = document.getElementById("rescueOverlayPrompt");
+    const continueButton = document.getElementById("learningNextBtn");
+    const studyPanel = document.getElementById("studyPanel");
+
+    if (!activeFish.needsRescue) {
+        continueButton.disabled = false;
+        studyPanel.classList.remove("study-panel-locked");
+        rescueOverlay.classList.add("hidden");
+        return;
+    }
+
+    if (activeFish.rescueComplete) {
+        continueButton.disabled = !activeFish.pollutionInfoSeen;
+        studyPanel.classList.toggle("study-panel-locked", !activeFish.pollutionInfoSeen);
+        rescueOverlay.classList.add("hidden");
+        return;
+    }
+
+    rescueOverlay.classList.remove("hidden");
+    rescueOverlay.classList.remove("sliced");
+    rescueOverlayPrompt.textContent = `Click, hold, and drag across the net to cut ${activeFish.data.name} free.`;
+    continueButton.disabled = true;
+    studyPanel.classList.add("study-panel-locked");
+}
+
+function beginRescueSlice(event) {
+    const activeFish = getActiveFish();
+    if (!activeFish || activeFish.phase !== "learning" || activeFish.rescueComplete) {
+        return;
+    }
+
+    const rescueOverlay = document.getElementById("rescueOverlay");
+    const rescueSlash = document.getElementById("rescueSlash");
+    const rect = rescueOverlay.getBoundingClientRect();
+
+    gameState.rescueDragStart = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+    };
+    rescueOverlay.setPointerCapture(event.pointerId);
+
+    rescueSlash.classList.remove("hidden");
+    rescueSlash.style.left = `${gameState.rescueDragStart.x}px`;
+    rescueSlash.style.top = `${gameState.rescueDragStart.y}px`;
+    rescueSlash.style.width = "0px";
+    rescueSlash.style.transform = "rotate(0deg)";
+}
+
+function trackRescueSlice(event) {
+    if (!gameState.rescueDragStart) {
+        return;
+    }
+
+    const rescueOverlay = document.getElementById("rescueOverlay");
+    const rescueSlash = document.getElementById("rescueSlash");
+    const rect = rescueOverlay.getBoundingClientRect();
+    const currentPoint = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+    };
+    const deltaX = currentPoint.x - gameState.rescueDragStart.x;
+    const deltaY = currentPoint.y - gameState.rescueDragStart.y;
+    const distance = Math.hypot(deltaX, deltaY);
+    const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+
+    rescueSlash.style.left = `${gameState.rescueDragStart.x}px`;
+    rescueSlash.style.top = `${gameState.rescueDragStart.y}px`;
+    rescueSlash.style.width = `${distance}px`;
+    rescueSlash.style.transform = `rotate(${angle}deg)`;
+}
+
+function endRescueSlice(event) {
+    if (!gameState.rescueDragStart) {
+        return;
+    }
+
+    const activeFish = getActiveFish();
+    const rescueOverlay = document.getElementById("rescueOverlay");
+    const rescueSlash = document.getElementById("rescueSlash");
+    const rect = rescueOverlay.getBoundingClientRect();
+    const endPoint = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+    };
+    const distance = Math.hypot(endPoint.x - gameState.rescueDragStart.x, endPoint.y - gameState.rescueDragStart.y);
+
+    if (activeFish && activeFish.phase === "learning" && !activeFish.rescueComplete && distance > rect.width * 0.35) {
+        activeFish.rescueComplete = true;
+        rescueOverlay.classList.add("sliced");
+        document.getElementById("studyPanel").classList.add("study-panel-locked");
+        document.getElementById("learningNextBtn").disabled = true;
+        showNotification(`${activeFish.data.name} is free. Read the pollution briefing to continue.`, "side");
+
+        gameState.rescueSliceTimeout = setTimeout(() => {
+            rescueOverlay.classList.add("hidden");
+            rescueOverlay.classList.remove("sliced");
+            showPollutionInfoOverlay(activeFish);
+            gameState.rescueSliceTimeout = null;
+        }, 450);
+    }
+
+    if (rescueOverlay.hasPointerCapture(event.pointerId)) {
+        rescueOverlay.releasePointerCapture(event.pointerId);
+    }
+
+    gameState.rescueDragStart = null;
+    rescueSlash.classList.add("hidden");
+    rescueSlash.removeAttribute("style");
+}
+
+function showPollutionInfoOverlay(activeFish) {
+    document.getElementById("pollutionInfoTitle").textContent = "Pollution";
+    document.getElementById("pollutionInfoLead").textContent = `${activeFish.data.name} can be harmed by discarded nets and other plastic waste in the ocean.`;
+    document.getElementById("pollutionImpactText").textContent = "Discarded nets and plastic can trap fish, cut into skin and fins, block feeding, and make it harder to swim or escape predators. That harm also spreads outward by weakening reef food webs and damaging habitats other marine life depends on.";
+    document.getElementById("pollutionActionText").textContent = "Use less single-use plastic, recycle correctly, join shoreline cleanups, and always dispose of fishing gear safely so nets and lines do not return to the water.";
+    document.getElementById("pollutionInfoOverlay").classList.remove("hidden");
+}
+
+function closePollutionInfoOverlay() {
+    const activeFish = getActiveFish();
+    document.getElementById("pollutionInfoOverlay").classList.add("hidden");
+
+    if (!activeFish || activeFish.phase !== "learning") {
+        return;
+    }
+
+    activeFish.pollutionInfoSeen = true;
+    document.getElementById("studyPanel").classList.remove("study-panel-locked");
+    document.getElementById("learningNextBtn").disabled = false;
+    showNotification(`You can keep studying ${activeFish.data.name} now.`, "side");
 }
 
 function showQuizResult(isCorrect, activeFish) {
@@ -858,10 +814,15 @@ function handleLearningContinue() {
         return;
     }
 
+    if (activeFish.needsRescue && !activeFish.rescueComplete) {
+        showNotification("Clear the debris first so the fish can swim away safely.", "side");
+        return;
+    }
+
     advanceStation(activeFish);
     updateStats();
     renderSpeciesList();
-    showNotification(`${activeFish.data.name} moved to a new location in multiple-choice mode.`);
+    gameState.postModalNotification = `${activeFish.data.name} moved to a new location in multiple-choice mode.`;
     closeGuessModal();
 }
 
@@ -942,27 +903,13 @@ function updateStats() {
     const completedCount = gameState.discoveredFish.size;
     const progress = Math.round((completedCount / totalSpecies) * 100);
 
-    const scoreEl = document.getElementById("score");
-    const caughtEl = document.getElementById("caught");
-    const progressEl = document.getElementById("progressPercent");
-
-    const oldScore = scoreEl.textContent;
-    scoreEl.textContent = gameState.score;
-    caughtEl.textContent = completedCount;
+    document.getElementById("score").textContent = gameState.score;
+    document.getElementById("caught").textContent = completedCount;
     document.getElementById("totalFish").textContent = totalSpecies;
-    progressEl.textContent = `${progress}%`;
+    document.getElementById("progressPercent").textContent = `${progress}%`;
     document.getElementById("progressText").textContent = `${completedCount} of ${totalSpecies} species mastered`;
     document.getElementById("progressFill").style.width = `${progress}%`;
     document.getElementById("statScoreLabel").textContent = "Score";
-
-    if (oldScore !== String(gameState.score)) {
-        [scoreEl, caughtEl, progressEl].forEach((el) => {
-            el.classList.remove("bump");
-            void el.offsetWidth;
-            el.classList.add("bump");
-            setTimeout(() => el.classList.remove("bump"), 350);
-        });
-    }
 }
 
 function renderSpeciesList() {
@@ -980,22 +927,13 @@ function renderSpeciesList() {
             item.classList.add("caught");
         }
 
-        const phaseColors = { learning: "#5ee4ff", multiple: "#ffd166", free: "#ff8b94" };
-        const phaseIcons = { learning: "\uD83D\uDCD6", multiple: "\uD83D\uDD0D", free: "\u270F\uFE0F" };
-        const currentPhase = station ? station.phase : "learning";
-        const dotColor = discovered ? "var(--success)" : (phaseColors[currentPhase] || "#5ee4ff");
-        const phaseIcon = discovered ? "\u2705" : (phaseIcons[currentPhase] || "\uD83D\uDCD6");
-
         item.innerHTML = `
             <div class="species-copy">
-                <span>
-                    <span class="species-dot" style="background:${dotColor};box-shadow:0 0 6px ${dotColor}"></span>
-                    ${discovered ? species.name : "Unknown Signal"}
-                </span>
+                <span>${discovered ? species.name : "Unknown Signal"}</span>
                 <small>${discovered ? species.shortFact : getSpeciesHint(station)}</small>
             </div>
             <div class="species-side">
-                <span class="species-status">${phaseIcon} ${getSpeciesStatus(station, discovered)}</span>
+                <span class="species-status">${getSpeciesStatus(station, discovered)}</span>
                 ${discovered ? `<span class="mini-danger ${danger.className}">${danger.label}</span>` : ""}
             </div>
         `;
@@ -1018,13 +956,9 @@ function renderSpeciesList() {
 }
 
 function syncModeUi() {
-    document.getElementById("modeBadge").textContent = gameState.mode ? "Progressive Expedition" : "Choose a mode";
-    document.getElementById("heroText").textContent = gameState.mode
-        ? "Each station begins as a learning card, then respawns as multiple choice, then respawns again as free response."
-        : "Pick a mode before launching your submarine. Each run samples 15 random fish from a 100-species pool.";
-    document.getElementById("missionText").textContent = gameState.mode
-        ? "Inspect nearby stations with E, F, or a click. Learn the fish first, then find it again for multiple choice, then again for free response."
-        : "Choose a game mode first. Each new game loads 15 random fish, and you inspect nearby signals with E, F, or a click.";
+    document.getElementById("modeBadge").innerHTML = '<span class="badge-dot"></span>Progressive Expedition';
+    document.getElementById("heroText").textContent = "Each station begins as a learning card, then respawns as multiple choice, then respawns again as free response.";
+    document.getElementById("missionText").textContent = "Inspect nearby stations with E, F, or a click. Learn the fish first, then find it again for multiple choice, then again for free response.";
 }
 
 function updateHud() {
@@ -1079,9 +1013,15 @@ function showGameOverModal() {
     document.getElementById("gameOverModal").classList.remove("hidden");
 }
 
-function showNotification(message) {
+function showNotification(message, placement = "side") {
     const toast = document.getElementById("toast");
     toast.textContent = message;
+    toast.classList.remove("toast-side");
+
+    if (placement === "side") {
+        toast.classList.add("toast-side");
+    }
+
     toast.classList.remove("hidden");
 
     if (gameState.notificationTimeout) {
@@ -1113,7 +1053,8 @@ async function loadFishImage(fishEntry) {
             return;
         }
 
-        setImageWithFallback(imageElement, media.imageUrl || fishEntry.data.fallbackImage, fishEntry.id);
+        const resolvedImage = media.imageUrl || fishEntry.data.fallbackImage;
+        setImageWithFallback(imageElement, resolvedImage, fishEntry.id);
         sourceLink.href = media.pageUrl || fishEntry.data.sourceUrl;
     } catch (_error) {
         if (requestToken !== gameState.imageRequestToken || gameState.activeFishId !== fishEntry.id) {

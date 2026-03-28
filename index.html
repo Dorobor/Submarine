@@ -110,8 +110,38 @@
                     <p id="modalKicker" class="modal-kicker">Specimen Scan</p>
                     <h2 id="modalTitle">Can you name this fish?</h2>
 
-                    <div class="fish-image-container">
+                    <div id="fishImageContainer" class="fish-image-container">
                         <img id="fishImage" src="" alt="Fish to inspect">
+                        <div id="rescueOverlay" class="rescue-overlay hidden">
+                            <div class="rescue-overlay-copy">
+                                <span class="rescue-kicker">Rescue Scan</span>
+                                <strong>Slice Through The Net</strong>
+                                <p id="rescueOverlayPrompt" class="rescue-prompt">Click, hold, and drag across the net to cut the fish free.</p>
+                            </div>
+                            <div class="rescue-net net-whole" aria-hidden="true"></div>
+                            <div class="rescue-net-half net-left" aria-hidden="true"></div>
+                            <div class="rescue-net-half net-right" aria-hidden="true"></div>
+                            <div id="rescueSlash" class="rescue-slash hidden" aria-hidden="true"></div>
+                        </div>
+                    </div>
+
+                    <div id="pollutionInfoOverlay" class="pollution-info-overlay hidden" aria-live="polite">
+                        <div class="pollution-info-card">
+                            <p class="modal-kicker">Pollution Impact</p>
+                            <h3 id="pollutionInfoTitle">How pollution harms marine life</h3>
+                            <p id="pollutionInfoLead" class="pollution-info-lead"></p>
+                            <div class="pollution-info-grid">
+                                <section class="pollution-info-block">
+                                    <h4>The Impact</h4>
+                                    <p id="pollutionImpactText"></p>
+                                </section>
+                                <section class="pollution-info-block">
+                                    <h4>Next Steps</h4>
+                                    <p id="pollutionActionText"></p>
+                                </section>
+                            </div>
+                            <button id="pollutionInfoBtn" type="button">Continue To Fish Card</button>
+                        </div>
                     </div>
 
                     <div id="fishMeta" class="fish-meta hidden">
@@ -134,11 +164,19 @@
                     </div>
 
                     <div id="learningPanel" class="learning-panel hidden">
-                        <h3 id="learningName"></h3>
-                        <p id="learningFact" class="learning-fact"></p>
-                        <p id="learningDescription" class="learning-description"></p>
-                        <p id="learningDangerText" class="learning-danger-text"></p>
-                        <button id="learningNextBtn" type="button">Continue Mission &rarr;</button>
+                        <section id="studyPanel" class="study-panel study-panel-locked">
+                            <div id="studyCover" class="study-cover" aria-hidden="true">
+                                <span class="study-cover-copy">A net is covering the fish photo. Cut through it above to unlock the fish card.</span>
+                                <span class="study-cover-net"></span>
+                            </div>
+                            <div class="study-panel-content">
+                                <h3 id="learningName"></h3>
+                                <p id="learningFact" class="learning-fact"></p>
+                                <p id="learningDescription" class="learning-description"></p>
+                                <p id="learningDangerText" class="learning-danger-text"></p>
+                            </div>
+                        </section>
+                        <button id="learningNextBtn" type="button" disabled>Continue Mission &rarr;</button>
                     </div>
 
                     <div id="result" class="result hidden">
