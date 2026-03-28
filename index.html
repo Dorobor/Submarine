@@ -3,18 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Submarine Fish Quest - Explore the ocean, discover 100+ fish species through learning cards, multiple choice, and free response challenges.">
     <title>Submarine Fish Quest</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F420;</text></svg>">
 </head>
 <body>
     <div class="page-glow"></div>
+    <div class="ambient-particles" aria-hidden="true">
+        <div class="particle particle-1"></div>
+        <div class="particle particle-2"></div>
+        <div class="particle particle-3"></div>
+        <div class="particle particle-4"></div>
+        <div class="particle particle-5"></div>
+        <div class="particle particle-6"></div>
+    </div>
+
     <div class="container">
         <header class="hero">
             <div class="hero-copy">
-                <p class="eyebrow">Ocean Explorer Challenge</p>
+                <p class="eyebrow">
+                    <span class="eyebrow-icon">&#9875;</span>
+                    Ocean Explorer Challenge
+                </p>
                 <div class="hero-topline">
-                    <h1>Submarine Fish Quest</h1>
-                    <span id="modeBadge" class="mode-badge">Progressive Expedition</span>
+                    <h1>Submarine<br>Fish Quest</h1>
+                    <span id="modeBadge" class="mode-badge">
+                        <span class="badge-dot"></span>
+                        Progressive Expedition
+                    </span>
                 </div>
                 <p id="heroText" class="hero-text">Each run samples 15 random fish from a 100-species pool and turns every station into a three-step challenge.</p>
             </div>
@@ -26,7 +43,7 @@
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">Cataloged</span>
-                    <span class="stat-value"><span id="caught">0</span>/<span id="totalFish">6</span></span>
+                    <span class="stat-value"><span id="caught">0</span><span class="stat-separator">/</span><span id="totalFish">6</span></span>
                 </div>
                 <div class="stat-card">
                     <span class="stat-label">Progress</span>
@@ -65,12 +82,12 @@
 
             <aside class="info-panel">
                 <section class="panel-card mission-card">
-                    <h2>Mission Brief</h2>
+                    <h2>&#127919; Mission Brief</h2>
                     <p id="missionText">Inspect nearby stations with E, F, or a click. Learn the fish first, then find it again for multiple choice, then again for free response.</p>
                 </section>
 
                 <section class="panel-card controls-card">
-                    <h2>Controls</h2>
+                    <h2>&#127918; Controls</h2>
                     <div class="control-grid">
                         <span>Move</span>
                         <strong>Arrow Keys / WASD</strong>
@@ -80,7 +97,7 @@
                 </section>
 
                 <section class="panel-card collection-card">
-                    <h2 id="speciesTitle">Species Log</h2>
+                    <h2 id="speciesTitle">&#128031; Species Log</h2>
                     <ul id="speciesList" class="species-list"></ul>
                 </section>
             </aside>
@@ -99,7 +116,7 @@
 
                     <div id="fishMeta" class="fish-meta hidden">
                         <span id="dangerBadge" class="danger-badge"></span>
-                        <a id="sourceLink" class="source-link" href="#" target="_blank" rel="noreferrer">View source on Wikipedia</a>
+                        <a id="sourceLink" class="source-link" href="#" target="_blank" rel="noreferrer">View source on Wikipedia &rarr;</a>
                     </div>
 
                     <div id="freeResponseForm" class="guess-form">
@@ -121,7 +138,7 @@
                         <p id="learningFact" class="learning-fact"></p>
                         <p id="learningDescription" class="learning-description"></p>
                         <p id="learningDangerText" class="learning-danger-text"></p>
-                        <button id="learningNextBtn" type="button">Continue Mission</button>
+                        <button id="learningNextBtn" type="button">Continue Mission &rarr;</button>
                     </div>
 
                     <div id="result" class="result hidden">
@@ -129,18 +146,18 @@
                         <div id="correctAnswer"></div>
                         <div id="description"></div>
                         <div id="resultDanger"></div>
-                        <button id="nextBtn" type="button">Continue Mission</button>
+                        <button id="nextBtn" type="button">Continue Mission &rarr;</button>
                     </div>
                 </div>
             </div>
 
             <div id="gameOverModal" class="modal hidden">
                 <div class="modal-content">
-                    <p class="modal-kicker">Mission Complete</p>
+                    <p class="modal-kicker">&#127942; Mission Complete</p>
                     <h2 id="gameOverTitle">Reef fully cataloged</h2>
                     <p id="gameOverText">You identified every creature in the area.</p>
                     <p id="finalScore"></p>
-                    <button id="restartBtn" type="button">Start New Expedition</button>
+                    <button id="restartBtn" type="button">Start New Expedition &#128640;</button>
                 </div>
             </div>
         </main>
