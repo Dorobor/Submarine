@@ -117,11 +117,36 @@
                     </div>
 
                     <div id="learningPanel" class="learning-panel hidden">
-                        <h3 id="learningName"></h3>
-                        <p id="learningFact" class="learning-fact"></p>
-                        <p id="learningDescription" class="learning-description"></p>
-                        <p id="learningDangerText" class="learning-danger-text"></p>
-                        <button id="learningNextBtn" type="button">Continue Mission</button>
+                        <div class="learning-layout">
+                            <section class="rescue-panel">
+                                <div class="rescue-copy">
+                                    <span class="rescue-kicker">Rescue Scan</span>
+                                    <strong id="rescueTitle">Clear the debris around this fish</strong>
+                                    <p id="rescuePrompt" class="rescue-prompt">Tap the net, bottle loop, and stray line to help the fish swim safely again.</p>
+                                </div>
+                                <div id="rescueArea" class="rescue-area" aria-live="polite"></div>
+                                <div id="rescueLegend" class="rescue-legend" aria-live="polite"></div>
+                                <p id="rescueBenefit" class="rescue-benefit">Removing trash helps fish feed, breathe, and escape predators more easily.</p>
+                                <p id="rescueStatus" class="rescue-status">Remove every hazard to continue.</p>
+                            </section>
+
+                            <section id="studyPanel" class="study-panel study-panel-locked">
+                                <div id="studyCover" class="study-cover" aria-hidden="true">
+                                    <span class="study-cover-copy">Plastic is blocking the fish card. Rescue the fish to clear it away.</span>
+                                    <span class="study-cover-strip strip-one"></span>
+                                    <span class="study-cover-strip strip-two"></span>
+                                    <span class="study-cover-strip strip-three"></span>
+                                    <span class="study-cover-net"></span>
+                                </div>
+                                <div class="study-panel-content">
+                                    <h3 id="learningName"></h3>
+                                    <p id="learningFact" class="learning-fact"></p>
+                                    <p id="learningDescription" class="learning-description"></p>
+                                    <p id="learningDangerText" class="learning-danger-text"></p>
+                                </div>
+                            </section>
+                        </div>
+                        <button id="learningNextBtn" type="button" disabled>Continue Mission</button>
                     </div>
 
                     <div id="result" class="result hidden">
