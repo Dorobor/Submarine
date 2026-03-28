@@ -4,7 +4,15 @@ Small vanilla JavaScript prototype for a 2D top-down educational exploration gam
 
 ## Run
 
-Open `index.html` in a browser, or serve the folder with any static server.
+Use `npm start` from the project root to launch a small local static server.
+
+```bash
+npm start
+```
+
+Then open the local URL shown in the terminal, usually `http://localhost:3000`.
+
+You can still open `index.html` directly in a browser, or serve the folder with any static server.
 
 ## Files
 
