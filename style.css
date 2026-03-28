@@ -123,7 +123,9 @@ body {
 
 .mode-badge,
 .danger-badge,
-.mini-danger {
+.status-badge,
+.mini-danger,
+.mini-status {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -352,19 +354,22 @@ body {
     color: var(--success);
 }
 
-.danger-low {
+.danger-low,
+.status-least-concern {
     background: rgba(156, 255, 176, 0.16);
     color: var(--success);
     border: 1px solid rgba(156, 255, 176, 0.2);
 }
 
-.danger-medium {
+.danger-medium,
+.status-vulnerable {
     background: rgba(255, 209, 102, 0.16);
     color: var(--sun);
     border: 1px solid rgba(255, 209, 102, 0.22);
 }
 
-.danger-high {
+.danger-high,
+.status-endangered {
     background: rgba(255, 139, 148, 0.16);
     color: var(--danger);
     border: 1px solid rgba(255, 139, 148, 0.22);

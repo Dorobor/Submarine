@@ -1,15 +1,26 @@
-const DANGER_LEVELS = {
+const CONSERVATION_STATUSES = {
     low: {
-        label: "Low",
-        className: "danger-low"
+        // originally "low" danger -> treated as least concern for conservation
+        label: "Least concern",
+        className: "status-least-concern"
     },
     medium: {
-        label: "Medium",
-        className: "danger-medium"
+        // originally "medium" danger -> treated as vulnerable/near-threatened
+        label: "Vulnerable",
+        className: "status-vulnerable"
     },
     high: {
-        label: "High",
-        className: "danger-high"
+        // originally "high" danger -> treated as endangered/at-risk
+        label: "Endangered",
+        className: "status-endangered"
+    },
+    invasive: {
+        label: "Invasive",
+        className: "status-invasive"
+    },
+    extinct: {
+        label: "Extinct",
+        className: "status-extinct"
     }
 };
 
@@ -196,8 +207,10 @@ function createFishEntry(seed, index) {
         wikiQuery: WIKI_QUERY_OVERRIDES[seed.name] || seed.name,
         sourceUrl: `https://en.wikipedia.org/wiki/${slugifySpeciesName(seed.name)}`,
         description: `${seed.name} is ${seed.shortFact}. Use this entry to learn one memorable clue about how the species looks or behaves.`,
+        // keep the original data field for compatibility but interpret it as conservation
         dangerLevel: seed.dangerLevel,
-        dangerText: `${DANGER_LEVELS[seed.dangerLevel].label} danger. ${seed.dangerNote}`,
+        conservationStatus: seed.dangerLevel,
+        dangerText: `${CONSERVATION_STATUSES[seed.dangerLevel].label} status. ${seed.dangerNote}`,
         shortFact: seed.shortFact.charAt(0).toUpperCase() + seed.shortFact.slice(1)
     };
 }

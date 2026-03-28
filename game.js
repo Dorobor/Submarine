@@ -487,8 +487,8 @@ function showEncounterModal(fishEntry) {
     document.getElementById("sourceLink").href = fishEntry.data.sourceUrl;
     document.getElementById("modalKicker").textContent = getPhaseKicker(fishEntry.phase);
     document.getElementById("modalTitle").textContent = getModalTitle();
-    document.getElementById("dangerBadge").className = `danger-badge ${DANGER_LEVELS[fishEntry.data.dangerLevel].className}`;
-    document.getElementById("dangerBadge").textContent = `Danger: ${DANGER_LEVELS[fishEntry.data.dangerLevel].label}`;
+    document.getElementById("dangerBadge").className = `status-badge ${CONSERVATION_STATUSES[fishEntry.data.dangerLevel].className}`;
+    document.getElementById("dangerBadge").textContent = `Status: ${CONSERVATION_STATUSES[fishEntry.data.dangerLevel].label}`;
 
     if (fishEntry.phase === "free") {
         document.getElementById("freeResponseForm").classList.remove("hidden");
@@ -733,7 +733,7 @@ function renderSpeciesList() {
         const item = document.createElement("li");
         const station = fish.find((fishEntry) => fishEntry.id === species.id);
         const discovered = gameState.discoveredFish.has(species.id);
-        const danger = DANGER_LEVELS[species.dangerLevel];
+        const danger = CONSERVATION_STATUSES[species.dangerLevel];
 
         if (discovered) {
             item.classList.add("caught");
@@ -746,7 +746,7 @@ function renderSpeciesList() {
             </div>
             <div class="species-side">
                 <span class="species-status">${getSpeciesStatus(station, discovered)}</span>
-                ${discovered ? `<span class="mini-danger ${danger.className}">${danger.label}</span>` : ""}
+                ${discovered ? `<span class="mini-status ${danger.className}">${danger.label}</span>` : ""}
             </div>
         `;
 
