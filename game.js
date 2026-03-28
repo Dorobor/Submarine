@@ -94,6 +94,7 @@ function setupEventListeners() {
     document.getElementById("learningNextBtn").addEventListener("click", handleLearningContinue);
     document.getElementById("nextBtn").addEventListener("click", handleResultContinue);
     document.getElementById("restartBtn").addEventListener("click", showStartScreen);
+    document.getElementById("pollutionInfoBtn").addEventListener("click", closePollutionInfoOverlay);
     document.getElementById("rescueOverlay").addEventListener("pointerdown", beginRescueSlice);
     document.getElementById("rescueOverlay").addEventListener("pointermove", trackRescueSlice);
     document.getElementById("rescueOverlay").addEventListener("pointerup", endRescueSlice);
@@ -161,7 +162,8 @@ function resetFish() {
             radius: 22,
             pulseOffset: Math.random() * Math.PI * 2,
             needsRescue: Math.random() < 0.1,
-            rescueComplete: false
+            rescueComplete: false,
+            pollutionInfoSeen: false
         });
     });
 
@@ -542,6 +544,7 @@ function resetEncounterPanels() {
     document.getElementById("rescueOverlay").classList.remove("sliced");
     document.getElementById("rescueSlash").classList.add("hidden");
     document.getElementById("rescueSlash").removeAttribute("style");
+    document.getElementById("pollutionInfoOverlay").classList.add("hidden");
     document.getElementById("studyPanel").classList.add("study-panel-locked");
     document.querySelector("#guessModal .modal-content").classList.remove("modal-content-learning");
     gameState.rescueDragStart = null;
@@ -657,9 +660,16 @@ function renderRescueChallenge(activeFish) {
     const continueButton = document.getElementById("learningNextBtn");
     const studyPanel = document.getElementById("studyPanel");
 
-    if (!activeFish.needsRescue || activeFish.rescueComplete) {
+    if (!activeFish.needsRescue) {
         continueButton.disabled = false;
         studyPanel.classList.remove("study-panel-locked");
+        rescueOverlay.classList.add("hidden");
+        return;
+    }
+
+    if (activeFish.rescueComplete) {
+        continueButton.disabled = !activeFish.pollutionInfoSeen;
+        studyPanel.classList.toggle("study-panel-locked", !activeFish.pollutionInfoSeen);
         rescueOverlay.classList.add("hidden");
         return;
     }
@@ -735,13 +745,14 @@ function endRescueSlice(event) {
     if (activeFish && activeFish.phase === "learning" && !activeFish.rescueComplete && distance > rect.width * 0.35) {
         activeFish.rescueComplete = true;
         rescueOverlay.classList.add("sliced");
-        document.getElementById("studyPanel").classList.remove("study-panel-locked");
-        document.getElementById("learningNextBtn").disabled = false;
-        showNotification(`${activeFish.data.name} is free. Continue when you're ready.`, "side");
+        document.getElementById("studyPanel").classList.add("study-panel-locked");
+        document.getElementById("learningNextBtn").disabled = true;
+        showNotification(`${activeFish.data.name} is free. Read the pollution briefing to continue.`, "side");
 
         gameState.rescueSliceTimeout = setTimeout(() => {
             rescueOverlay.classList.add("hidden");
             rescueOverlay.classList.remove("sliced");
+            showPollutionInfoOverlay(activeFish);
             gameState.rescueSliceTimeout = null;
         }, 450);
     }
@@ -753,6 +764,28 @@ function endRescueSlice(event) {
     gameState.rescueDragStart = null;
     rescueSlash.classList.add("hidden");
     rescueSlash.removeAttribute("style");
+}
+
+function showPollutionInfoOverlay(activeFish) {
+    document.getElementById("pollutionInfoTitle").textContent = "Pollution";
+    document.getElementById("pollutionInfoLead").textContent = `${activeFish.data.name} can be harmed by discarded nets and other plastic waste in the ocean.`;
+    document.getElementById("pollutionImpactText").textContent = "Discarded nets and plastic can trap fish, cut into skin and fins, block feeding, and make it harder to swim or escape predators. That harm also spreads outward by weakening reef food webs and damaging habitats other marine life depends on.";
+    document.getElementById("pollutionActionText").textContent = "Use less single-use plastic, recycle correctly, join shoreline cleanups, and always dispose of fishing gear safely so nets and lines do not return to the water.";
+    document.getElementById("pollutionInfoOverlay").classList.remove("hidden");
+}
+
+function closePollutionInfoOverlay() {
+    const activeFish = getActiveFish();
+    document.getElementById("pollutionInfoOverlay").classList.add("hidden");
+
+    if (!activeFish || activeFish.phase !== "learning") {
+        return;
+    }
+
+    activeFish.pollutionInfoSeen = true;
+    document.getElementById("studyPanel").classList.remove("study-panel-locked");
+    document.getElementById("learningNextBtn").disabled = false;
+    showNotification(`You can keep studying ${activeFish.data.name} now.`, "side");
 }
 
 function showQuizResult(isCorrect, activeFish) {

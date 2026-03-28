@@ -410,7 +410,8 @@ body.modal-open {
 .learning-panel.hidden,
 .guess-form.hidden,
 .fish-meta.hidden,
-.rescue-overlay.hidden {
+.rescue-overlay.hidden,
+.pollution-info-overlay.hidden {
     display: none;
 }
 
@@ -646,6 +647,73 @@ button:hover {
     z-index: 4;
     pointer-events: none;
     box-shadow: 0 0 18px rgba(255, 255, 255, 0.5);
+}
+
+.pollution-info-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(3, 12, 21, 0.72);
+    backdrop-filter: blur(5px);
+}
+
+.pollution-info-card {
+    width: min(100%, 760px);
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding: 28px;
+    border-radius: 24px;
+    border: 1px solid rgba(120, 236, 255, 0.2);
+    background: linear-gradient(180deg, rgba(8, 36, 54, 0.98), rgba(4, 21, 35, 0.98));
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+}
+
+.pollution-info-card h3,
+.pollution-info-card h4 {
+    font-family: Georgia, "Times New Roman", serif;
+}
+
+.pollution-info-card h3 {
+    font-size: clamp(1.7rem, 4vw, 2.3rem);
+    margin: 10px 0 14px;
+}
+
+.pollution-info-lead {
+    color: var(--muted);
+    line-height: 1.65;
+    margin-bottom: 18px;
+}
+
+.pollution-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.pollution-info-block {
+    padding: 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(120, 236, 255, 0.12);
+}
+
+.pollution-info-block h4 {
+    margin-bottom: 8px;
+    font-size: 1.05rem;
+}
+
+.pollution-info-block p {
+    color: var(--muted);
+    line-height: 1.65;
+}
+
+#pollutionInfoBtn {
+    width: 100%;
+    margin-top: 18px;
 }
 
 .fish-meta {
@@ -911,6 +979,14 @@ button:hover {
 
     .rescue-overlay {
         inset: 10px;
+    }
+
+    .pollution-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pollution-info-card {
+        padding: 22px;
     }
 
     .toast.toast-side {
