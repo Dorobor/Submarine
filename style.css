@@ -29,11 +29,22 @@ body {
     font-family: "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif;
     color: var(--text);
     min-height: 100vh;
-    background:
-        radial-gradient(circle at top, rgba(120, 236, 255, 0.14), transparent 34%),
-        linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+    background-image: url('https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=1600&q=80');
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
     padding: 24px;
     overflow-x: hidden;
+    position: relative;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 30, 40, 0.5), rgba(0, 20, 30, 0.6));
+    pointer-events: none;
+    z-index: 0;
 }
 
 .page-glow {
@@ -51,7 +62,7 @@ body {
     max-width: 1220px;
     margin: 0 auto;
     position: relative;
-    z-index: 1;
+    z-index: 2;
 }
 
 .hero {
@@ -123,9 +134,7 @@ body {
 
 .mode-badge,
 .danger-badge,
-.status-badge,
-.mini-danger,
-.mini-status {
+.mini-danger {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -354,22 +363,19 @@ body {
     color: var(--success);
 }
 
-.danger-low,
-.status-least-concern {
+.danger-low {
     background: rgba(156, 255, 176, 0.16);
     color: var(--success);
     border: 1px solid rgba(156, 255, 176, 0.2);
 }
 
-.danger-medium,
-.status-vulnerable {
+.danger-medium {
     background: rgba(255, 209, 102, 0.16);
     color: var(--sun);
     border: 1px solid rgba(255, 209, 102, 0.22);
 }
 
-.danger-high,
-.status-endangered {
+.danger-high {
     background: rgba(255, 139, 148, 0.16);
     color: var(--danger);
     border: 1px solid rgba(255, 139, 148, 0.22);

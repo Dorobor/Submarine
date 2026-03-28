@@ -11,6 +11,7 @@ const gameState = {
     notificationTimeout: null,
     imageCache: {},
     imageRequestToken: 0,
+    lastFrameTime: null,
     camera: {
         x: 0,
         y: 0
@@ -117,6 +118,7 @@ function startGame() {
     resetEncounterPanels();
     closeGuessModal();
     document.getElementById("gameOverModal").classList.add("hidden");
+    gameState.lastFrameTime = null;
     prefetchSpeciesImages();
     showNotification("Explore the reef. Every station starts in learning mode, then relocates into multiple choice and free response.");
 }
@@ -153,7 +155,8 @@ function resetFish() {
             discovered: false,
             phase: STATION_PHASES[0],
             radius: 22,
-            pulseOffset: Math.random() * Math.PI * 2
+            pulseOffset: Math.random() * Math.PI * 2,
+            ...createFishMovement()
         });
     });
 
@@ -192,13 +195,29 @@ function generateFishPositions(count) {
     return positions;
 }
 
-function gameLoop() {
-    update();
+function gameLoop(timestamp) {
+    const deltaFactor = getFrameDeltaFactor(timestamp);
+    update(deltaFactor);
     draw();
     requestAnimationFrame(gameLoop);
 }
 
-function update() {
+function getFrameDeltaFactor(timestamp) {
+    if (typeof timestamp !== "number") {
+        return 1;
+    }
+
+    if (gameState.lastFrameTime === null) {
+        gameState.lastFrameTime = timestamp;
+        return 1;
+    }
+
+    const deltaFactor = Math.min(2, (timestamp - gameState.lastFrameTime) / (1000 / 60));
+    gameState.lastFrameTime = timestamp;
+    return deltaFactor || 1;
+}
+
+function update(deltaFactor) {
     if (!gameState.started || gameState.gameOver) {
         updateHud();
         return;
@@ -212,8 +231,8 @@ function update() {
     if (gameState.keys.ArrowLeft || gameState.keys.a || gameState.keys.A) submarine.vx = -GAME_CONFIG.submarineSpeed;
     if (gameState.keys.ArrowRight || gameState.keys.d || gameState.keys.D) submarine.vx = GAME_CONFIG.submarineSpeed;
 
-    submarine.x += submarine.vx;
-    submarine.y += submarine.vy;
+    submarine.x += submarine.vx * deltaFactor;
+    submarine.y += submarine.vy * deltaFactor;
 
     if (submarine.vx !== 0 || submarine.vy !== 0) {
         submarine.angle = Math.atan2(submarine.vy, submarine.vx);
@@ -222,15 +241,16 @@ function update() {
     submarine.x = Math.max(22, Math.min(submarine.x, GAME_CONFIG.mapWidth - submarine.width - 20));
     submarine.y = Math.max(36, Math.min(submarine.y, GAME_CONFIG.mapHeight - submarine.height - 28));
 
-    updateBubbles();
+    updateBubbles(deltaFactor);
+    updateFishMovement(deltaFactor);
     updateCamera();
     updateHud();
 }
 
-function updateBubbles() {
+function updateBubbles(deltaFactor) {
     gameState.bubbles.forEach((bubble) => {
-        bubble.y -= bubble.speed;
-        bubble.x += bubble.drift;
+        bubble.y -= bubble.speed * deltaFactor;
+        bubble.x += bubble.drift * deltaFactor;
 
         if (bubble.y + bubble.radius < 0) {
             bubble.y = GAME_CONFIG.mapHeight + bubble.radius;
@@ -240,6 +260,105 @@ function updateBubbles() {
         if (bubble.x < -10) bubble.x = GAME_CONFIG.mapWidth + 10;
         if (bubble.x > GAME_CONFIG.mapWidth + 10) bubble.x = -10;
     });
+}
+
+function createFishMovement() {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.7 + Math.random() * 0.9;
+
+    return {
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        driftSpeed: speed,
+        turnCooldown: 40 + Math.random() * 110
+    };
+}
+
+function updateFishMovement(deltaFactor) {
+    if (isGuessModalOpen()) {
+        return;
+    }
+
+    fish.forEach((fishEntry) => {
+        if (fishEntry.discovered) {
+            return;
+        }
+
+        fishEntry.turnCooldown -= deltaFactor;
+        if (fishEntry.turnCooldown <= 0) {
+            nudgeFishCourse(fishEntry, (Math.random() - 0.5) * 0.9);
+            fishEntry.turnCooldown = 40 + Math.random() * 110;
+        }
+
+        const separation = getFishSeparationVector(fishEntry);
+        fishEntry.vx += separation.x * 0.03 * deltaFactor;
+        fishEntry.vy += separation.y * 0.03 * deltaFactor;
+
+        const nextX = fishEntry.x + fishEntry.vx * deltaFactor;
+        const nextY = fishEntry.y + fishEntry.vy * deltaFactor;
+        const bounds = getFishTravelBounds(nextX);
+
+        if (nextX < bounds.minX || nextX > bounds.maxX) {
+            fishEntry.vx *= -1;
+        }
+
+        if (nextY < bounds.minY || nextY > bounds.maxY) {
+            fishEntry.vy *= -1;
+        }
+
+        normalizeFishVelocity(fishEntry);
+
+        fishEntry.x = clamp(fishEntry.x + fishEntry.vx * deltaFactor, bounds.minX, bounds.maxX);
+        fishEntry.y = clamp(fishEntry.y + fishEntry.vy * deltaFactor, bounds.minY, bounds.maxY);
+    });
+}
+
+function nudgeFishCourse(fishEntry, angleDelta) {
+    const currentAngle = Math.atan2(fishEntry.vy, fishEntry.vx);
+    fishEntry.vx = Math.cos(currentAngle + angleDelta) * fishEntry.driftSpeed;
+    fishEntry.vy = Math.sin(currentAngle + angleDelta) * fishEntry.driftSpeed;
+}
+
+function normalizeFishVelocity(fishEntry) {
+    const speed = Math.hypot(fishEntry.vx, fishEntry.vy) || 1;
+    fishEntry.vx = (fishEntry.vx / speed) * fishEntry.driftSpeed;
+    fishEntry.vy = (fishEntry.vy / speed) * fishEntry.driftSpeed;
+}
+
+function getFishSeparationVector(activeFish) {
+    return fish.reduce((offset, fishEntry) => {
+        if (fishEntry === activeFish || fishEntry.discovered) {
+            return offset;
+        }
+
+        const dx = activeFish.x - fishEntry.x;
+        const dy = activeFish.y - fishEntry.y;
+        const distance = Math.hypot(dx, dy);
+
+        if (!distance || distance > 135) {
+            return offset;
+        }
+
+        const push = (135 - distance) / 135;
+        offset.x += (dx / distance) * push;
+        offset.y += (dy / distance) * push;
+        return offset;
+    }, { x: 0, y: 0 });
+}
+
+function getFishTravelBounds(worldX) {
+    const margin = 90;
+    const seabedBuffer = 120;
+    const minX = margin;
+    const maxX = GAME_CONFIG.mapWidth - margin;
+    const minY = margin;
+    const maxY = Math.max(minY + 80, Math.min(GAME_CONFIG.mapHeight - margin, getSeabedY(worldX) - seabedBuffer));
+
+    return { minX, maxX, minY, maxY };
+}
+
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(value, max));
 }
 
 function draw() {
@@ -487,7 +606,7 @@ function showEncounterModal(fishEntry) {
     document.getElementById("sourceLink").href = fishEntry.data.sourceUrl;
     document.getElementById("modalKicker").textContent = getPhaseKicker(fishEntry.phase);
     document.getElementById("modalTitle").textContent = getModalTitle();
-    document.getElementById("dangerBadge").className = `status-badge ${CONSERVATION_STATUSES[fishEntry.data.dangerLevel].className}`;
+    document.getElementById("dangerBadge").className = `danger-badge ${CONSERVATION_STATUSES[fishEntry.data.dangerLevel].className}`;
     document.getElementById("dangerBadge").textContent = `Status: ${CONSERVATION_STATUSES[fishEntry.data.dangerLevel].label}`;
 
     if (fishEntry.phase === "free") {
@@ -596,12 +715,19 @@ function handleQuizOutcome(isCorrect, activeFish) {
 }
 
 function showLearningPanel(activeFish) {
+    const conservationStatus = CONSERVATION_STATUSES[activeFish.data.dangerLevel];
+    const learningDangerText = document.getElementById("learningDangerText");
+    const dangerStatusText = activeFish.data.dangerText.replace(/^[^.]+\.\s*/, "");
+
     document.getElementById("fishMeta").classList.remove("hidden");
     document.getElementById("learningPanel").classList.remove("hidden");
     document.getElementById("learningName").textContent = activeFish.data.name;
     document.getElementById("learningFact").textContent = activeFish.data.shortFact;
     document.getElementById("learningDescription").textContent = activeFish.data.description;
-    document.getElementById("learningDangerText").textContent = activeFish.data.dangerText;
+    learningDangerText.innerHTML = `
+        <span class="inline-status ${conservationStatus.className}">${conservationStatus.label}</span>
+        <span>${dangerStatusText}</span>
+    `;
     showNotification(`Study ${activeFish.data.name}, then continue to move it into multiple-choice mode.`);
 }
 
@@ -674,6 +800,7 @@ function relocateFish(activeFish) {
     const position = generateRelocationPosition(activeFish);
     activeFish.x = position.x;
     activeFish.y = position.y;
+    Object.assign(activeFish, createFishMovement());
 }
 
 function generateRelocationPosition(activeFish) {
@@ -746,7 +873,7 @@ function renderSpeciesList() {
             </div>
             <div class="species-side">
                 <span class="species-status">${getSpeciesStatus(station, discovered)}</span>
-                ${discovered ? `<span class="mini-status ${danger.className}">${danger.label}</span>` : ""}
+                ${discovered ? `<span class="mini-danger ${danger.className}">${danger.label}</span>` : ""}
             </div>
         `;
 
