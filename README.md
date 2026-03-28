@@ -12,6 +12,22 @@ npm start
 
 Then open the local URL shown in the terminal, usually `http://localhost:3000`.
 
+### macOS / Linux
+
+```bash
+cd /path/to/Submarine
+npm start
+```
+
+### Windows
+
+```powershell
+cd C:\path\to\Submarine
+npm start
+```
+
+On the first run, `npx` may ask permission to download `serve`. Accept with `y`.
+
 You can still open `index.html` directly in a browser, or serve the folder with any static server.
 
 ## Files
