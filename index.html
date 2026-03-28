@@ -1,82 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bay Explorer Submarine</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Manrope:wght@400;500;700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <main class="app-shell">
-      <section class="hud-card">
-        <div class="hud-topbar">
-          <button class="settings-button" id="settingsToggle" type="button" aria-label="Open settings">⚙</button>
-        </div>
-        <p class="eyebrow">California Bay Explorer</p>
-        <h1>Discover Bay Area Marine Life</h1>
-        <p class="instructions">
-          Navigate with <span>WASD</span> or <span>Arrow Keys</span>. Approach a glowing creature and press
-          <span>F</span> to identify it.
-        </p>
-        <div class="legend">
-          <span><i class="legend-dot submarine-dot"></i> Your submarine</span>
-          <span><i class="legend-dot fish-dot"></i> Discoverable creature</span>
-        </div>
-      </section>
-
-      <section class="game-panel">
-        <canvas id="gameCanvas" width="960" height="540" aria-label="Submarine exploration game"></canvas>
-        <div class="game-tip" id="interactionPrompt">Find marine life near the kelp beds.</div>
-        <p class="screen-footnote">* Toggle <strong>Goofy Mode*</strong> with the cog to use the hand-drawn fish art.</p>
-      </section>
-    </main>
-
-    <aside class="settings-panel hidden" id="settingsPanel" aria-label="Game settings">
-      <div class="settings-header">
-        <p class="eyebrow">Settings</p>
-        <button class="settings-close" id="closeSettings" type="button" aria-label="Close settings">×</button>
-      </div>
-      <div class="setting-row">
-        <div>
-          <p class="setting-title">Goofy Mode*</p>
-          <p class="setting-copy">Drawn fish art</p>
-        </div>
-        <button class="toggle-switch off" id="goofyModeToggle" type="button" aria-pressed="false" aria-label="Toggle goofy mode">
-          <span class="toggle-knob"></span>
-        </button>
-      </div>
-    </aside>
-
-    <div class="modal-backdrop hidden" id="quizModal" role="dialog" aria-modal="true" aria-labelledby="quizTitle">
-      <div class="modal-card">
-        <button class="modal-close" id="closeModal" aria-label="Close quiz">×</button>
-        <div class="modal-grid">
-          <div class="modal-image-wrap">
-            <img id="fishImage" alt="" />
-          </div>
-          <div class="modal-content">
-            <p class="modal-kicker">Marine Life Scan</p>
-            <h2 id="quizTitle">What is this fish?</h2>
-            <p class="modal-subtitle" id="fishLocation"></p>
-            <div class="answer-grid" id="answerButtons"></div>
-            <p class="feedback" id="feedbackMessage"></p>
-            <div class="modal-actions">
-              <a id="learnMoreLink" class="learn-more" href="#" target="_blank" rel="noreferrer noopener">Learn More</a>
-              <button id="nextPrompt" class="secondary-button">Keep Exploring</button>
-            </div>
-          </div>
-        </div>
-      </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Submarine Fish Quest - Explore the ocean, discover 100+ fish species through learning cards, multiple choice, and free response challenges.">
+    <title>Submarine Fish Quest</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐠</text></svg>">
+</head>
+<body>
+    <div class="page-glow"></div>
+    <div class="ambient-particles" aria-hidden="true">
+        <div class="particle particle-1"></div>
+        <div class="particle particle-2"></div>
+        <div class="particle particle-3"></div>
+        <div class="particle particle-4"></div>
+        <div class="particle particle-5"></div>
+        <div class="particle particle-6"></div>
     </div>
 
-    <script src="./src/data/fishData.js"></script>
-    <script src="./src/player.js"></script>
-    <script src="./src/game.js"></script>
-  </body>
+    <div class="container">
+        <header class="hero">
+            <div class="hero-copy">
+                <p class="eyebrow">
+                    <span class="eyebrow-icon">⚓</span>
+                    Ocean Explorer Challenge
+                </p>
+                <div class="hero-topline">
+                    <h1>Submarine<br>Fish Quest</h1>
+                    <span id="modeBadge" class="mode-badge">
+                        <span class="badge-dot"></span>
+                        Progressive Expedition
+                    </span>
+                </div>
+                <p id="heroText" class="hero-text">Each run samples 15 random fish from a 100-species pool and turns every station into a three-step challenge.</p>
+            </div>
+
+            <div class="stats" aria-label="Game stats">
+                <div class="stat-card" id="scoreCard">
+                    <span id="statScoreLabel" class="stat-label">Score</span>
+                    <span class="stat-value" id="score">0</span>
+                </div>
+                <div class="stat-card" id="catalogCard">
+                    <span class="stat-label">Cataloged</span>
+                    <span class="stat-value"><span id="caught">0</span><span class="stat-separator">/</span><span id="totalFish">6</span></span>
+                </div>
+                <div class="stat-card" id="progressCard">
+                    <span class="stat-label">Progress</span>
+                    <span class="stat-value" id="progressPercent">0%</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="game-layout">
+            <section class="play-panel">
+                <div id="gameArea" class="game-area">
+                    <div class="game-hud">
+                        <div class="hud-chip">
+                            <span class="hud-label">Status</span>
+                            <strong id="hudStatus">Exploring</strong>
+                        </div>
+                        <div class="hud-chip">
+                            <span class="hud-label">Nearest Signal</span>
+                            <strong id="hudTarget">Find a nearby signal</strong>
+                        </div>
+                    </div>
+
+                    <canvas id="gameCanvas"></canvas>
+                </div>
+
+                <div class="progress-panel" aria-label="Progress">
+                    <div class="progress-copy">
+                        <span class="progress-label">Collection Progress</span>
+                        <strong id="progressText">0 of 15 species cataloged</strong>
+                    </div>
+                    <div class="progress-bar" aria-hidden="true">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="info-panel">
+                <section class="panel-card mission-card" id="missionSection">
+                    <h2>🎯 Mission Brief</h2>
+                    <p id="missionText">Inspect nearby stations with E, F, or a click. Learn the fish first, then find it again for multiple choice, then again for free response.</p>
+                </section>
+
+                <section class="panel-card controls-card" id="controlsSection">
+                    <h2>🎮 Controls</h2>
+                    <div class="control-grid">
+                        <span>Move</span>
+                        <strong>Arrow Keys / WASD</strong>
+                        <span>Inspect</span>
+                        <strong>E / F or click nearby marker</strong>
+                    </div>
+                </section>
+
+                <section class="panel-card collection-card" id="collectionSection">
+                    <h2 id="speciesTitle">🐟 Species Log</h2>
+                    <ul id="speciesList" class="species-list"></ul>
+                </section>
+            </aside>
+
+            <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+            <div id="guessModal" class="modal hidden">
+                <div class="modal-content">
+                    <button class="close" type="button" aria-label="Close">&times;</button>
+                    <p id="modalKicker" class="modal-kicker">Specimen Scan</p>
+                    <h2 id="modalTitle">Can you name this fish?</h2>
+
+                    <div class="fish-image-container">
+                        <img id="fishImage" src="" alt="Fish to inspect">
+                    </div>
+
+                    <div id="fishMeta" class="fish-meta hidden">
+                        <span id="dangerBadge" class="danger-badge"></span>
+                        <a id="sourceLink" class="source-link" href="#" target="_blank" rel="noreferrer">View source on Wikipedia →</a>
+                    </div>
+
+                    <div id="freeResponseForm" class="guess-form">
+                        <input
+                            type="text"
+                            id="guessInput"
+                            placeholder="Enter fish name..."
+                            autocomplete="off"
+                        >
+                        <button id="submitGuess" type="button">Submit Guess</button>
+                    </div>
+
+                    <div id="choiceForm" class="choice-form hidden">
+                        <div id="choiceButtons" class="choice-buttons"></div>
+                    </div>
+
+                    <div id="learningPanel" class="learning-panel hidden">
+                        <h3 id="learningName"></h3>
+                        <p id="learningFact" class="learning-fact"></p>
+                        <p id="learningDescription" class="learning-description"></p>
+                        <p id="learningDangerText" class="learning-danger-text"></p>
+                        <button id="learningNextBtn" type="button">Continue Mission →</button>
+                    </div>
+
+                    <div id="result" class="result hidden">
+                        <div id="resultMessage"></div>
+                        <div id="correctAnswer"></div>
+                        <div id="description"></div>
+                        <div id="resultDanger"></div>
+                        <button id="nextBtn" type="button">Continue Mission →</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="gameOverModal" class="modal hidden">
+                <div class="modal-content">
+                    <p class="modal-kicker">🏆 Mission Complete</p>
+                    <h2 id="gameOverTitle">Reef fully cataloged</h2>
+                    <p id="gameOverText">You identified every creature in the area.</p>
+                    <p id="finalScore"></p>
+                    <button id="restartBtn" type="button">Start New Expedition 🚀</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="game.js"></script>
+</body>
 </html>
