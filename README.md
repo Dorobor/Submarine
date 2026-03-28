@@ -4,7 +4,17 @@ Small vanilla JavaScript prototype for a 2D top-down educational exploration gam
 
 ## Run
 
-Use `npm start` from the project root to launch a small local static server.
+The easiest option is to open `index.html` directly in a browser.
+
+### Easiest
+
+- Open the repo folder
+- Double-click `index.html`
+- Or right-click `index.html` and open it in Chrome, Edge, or another browser
+
+### Optional: npm
+
+You can still use `npm start` from the project root to launch a small local static server.
 
 ```bash
 npm start

@@ -15,6 +15,9 @@
   <body>
     <main class="app-shell">
       <section class="hud-card">
+        <div class="hud-topbar">
+          <button class="settings-button" id="settingsToggle" type="button" aria-label="Open settings">⚙</button>
+        </div>
         <p class="eyebrow">California Bay Explorer</p>
         <h1>Discover Bay Area Marine Life</h1>
         <p class="instructions">
@@ -30,8 +33,25 @@
       <section class="game-panel">
         <canvas id="gameCanvas" width="960" height="540" aria-label="Submarine exploration game"></canvas>
         <div class="game-tip" id="interactionPrompt">Find marine life near the kelp beds.</div>
+        <p class="screen-footnote">* Toggle <strong>Goofy Mode*</strong> with the cog to use the hand-drawn fish art.</p>
       </section>
     </main>
+
+    <aside class="settings-panel hidden" id="settingsPanel" aria-label="Game settings">
+      <div class="settings-header">
+        <p class="eyebrow">Settings</p>
+        <button class="settings-close" id="closeSettings" type="button" aria-label="Close settings">×</button>
+      </div>
+      <div class="setting-row">
+        <div>
+          <p class="setting-title">Goofy Mode*</p>
+          <p class="setting-copy">Drawn fish art</p>
+        </div>
+        <button class="toggle-switch off" id="goofyModeToggle" type="button" aria-pressed="false" aria-label="Toggle goofy mode">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+    </aside>
 
     <div class="modal-backdrop hidden" id="quizModal" role="dialog" aria-modal="true" aria-labelledby="quizTitle">
       <div class="modal-card">
@@ -55,6 +75,8 @@
       </div>
     </div>
 
-    <script type="module" src="./src/game.js"></script>
+    <script src="./src/data/fishData.js"></script>
+    <script src="./src/player.js"></script>
+    <script src="./src/game.js"></script>
   </body>
 </html>

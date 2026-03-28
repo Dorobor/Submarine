@@ -1,8 +1,9 @@
-export const fishData = [
+window.fishData = [
   {
     id: "leopard-shark",
     name: "Leopard Shark",
-    imagePath: "./assets/fish/leopard-shark.svg",
+    goofyImagePath: "./assets/fish/leopard-shark.svg",
+    wikiTitle: "Leopard_shark",
     options: ["Leopard Shark", "Soupfin Shark", "Bat Ray", "Sturgeon"],
     correctAnswer: "Leopard Shark",
     infoLink: "https://en.wikipedia.org/wiki/Leopard_shark",
@@ -11,7 +12,8 @@ export const fishData = [
   {
     id: "bat-ray",
     name: "Bat Ray",
-    imagePath: "./assets/fish/bat-ray.svg",
+    goofyImagePath: "./assets/fish/bat-ray.svg",
+    wikiTitle: "Bat_ray",
     options: ["Manta Ray", "Bat Ray", "Skate", "Halibut"],
     correctAnswer: "Bat Ray",
     infoLink: "https://en.wikipedia.org/wiki/Bat_ray",
@@ -20,7 +22,8 @@ export const fishData = [
   {
     id: "pacific-sanddab",
     name: "Pacific Sanddab",
-    imagePath: "./assets/fish/pacific-sanddab.svg",
+    goofyImagePath: "./assets/fish/pacific-sanddab.svg",
+    wikiTitle: "Pacific_sanddab",
     options: ["Pacific Sanddab", "Anchovy", "Lingcod", "Rock Sole"],
     correctAnswer: "Pacific Sanddab",
     infoLink: "https://en.wikipedia.org/wiki/Pacific_sanddab",
@@ -29,7 +32,8 @@ export const fishData = [
   {
     id: "white-sturgeon",
     name: "White Sturgeon",
-    imagePath: "./assets/fish/white-sturgeon.svg",
+    goofyImagePath: "./assets/fish/white-sturgeon.svg",
+    wikiTitle: "White_sturgeon",
     options: ["White Sturgeon", "Leopard Shark", "Striped Bass", "Cabezon"],
     correctAnswer: "White Sturgeon",
     infoLink: "https://en.wikipedia.org/wiki/White_sturgeon",
@@ -38,7 +42,8 @@ export const fishData = [
   {
     id: "northern-anchovy",
     name: "Northern Anchovy",
-    imagePath: "./assets/fish/northern-anchovy.svg",
+    goofyImagePath: "./assets/fish/northern-anchovy.svg",
+    wikiTitle: "Californian_anchovy",
     options: ["Northern Anchovy", "Sardine", "Smelt", "Herring"],
     correctAnswer: "Northern Anchovy",
     infoLink: "https://en.wikipedia.org/wiki/Northern_anchovy",
@@ -47,7 +52,8 @@ export const fishData = [
   {
     id: "cabezon",
     name: "Cabezon",
-    imagePath: "./assets/fish/cabezon.svg",
+    goofyImagePath: "./assets/fish/cabezon.svg",
+    wikiTitle: "Cabezon_(fish)",
     options: ["Cabezon", "Lingcod", "Rockfish", "Perch"],
     correctAnswer: "Cabezon",
     infoLink: "https://en.wikipedia.org/wiki/Cabezon_(fish)",

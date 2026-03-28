@@ -1,6 +1,3 @@
-import { fishData } from "./data/fishData.js";
-import { Player } from "./player.js";
-
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -9,14 +6,22 @@ const modalEl = document.getElementById("quizModal");
 const closeModalButton = document.getElementById("closeModal");
 const keepExploringButton = document.getElementById("nextPrompt");
 const fishImage = document.getElementById("fishImage");
+const fishImageWrap = fishImage.parentElement;
 const fishLocation = document.getElementById("fishLocation");
 const feedbackMessage = document.getElementById("feedbackMessage");
 const answerButtons = document.getElementById("answerButtons");
 const learnMoreLink = document.getElementById("learnMoreLink");
+const settingsToggleButton = document.getElementById("settingsToggle");
+const settingsPanel = document.getElementById("settingsPanel");
+const closeSettingsButton = document.getElementById("closeSettings");
+const goofyModeToggle = document.getElementById("goofyModeToggle");
+const fishData = window.fishData;
+const Player = window.Player;
 
 const world = { width: canvas.width, height: canvas.height };
 const player = new Player(120, 120);
 const keys = new Set();
+const wikiImageCache = new Map();
 const spawnSlots = [
   { x: 220, y: 370 },
   { x: 690, y: 290 },
@@ -31,6 +36,7 @@ let lastFrameTime = performance.now();
 let activeFish = null;
 let answeredFishIds = new Set();
 let interactionLocked = false;
+let goofyModeEnabled = false;
 
 function shuffleArray(items) {
   const copy = [...items];
@@ -48,6 +54,50 @@ function assignFishSpawns(fishEntries, slots) {
     worldX: shuffledSlots[index % shuffledSlots.length].x,
     worldY: shuffledSlots[index % shuffledSlots.length].y,
   }));
+}
+
+async function getFishImageSource(fish) {
+  if (goofyModeEnabled) {
+    return fish.goofyImagePath;
+  }
+
+  if (!fish.wikiTitle) {
+    return fish.goofyImagePath;
+  }
+
+  if (wikiImageCache.has(fish.wikiTitle)) {
+    return wikiImageCache.get(fish.wikiTitle);
+  }
+
+  try {
+    const response = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${fish.wikiTitle}`);
+    if (!response.ok) {
+      throw new Error(`Wikipedia image lookup failed for ${fish.wikiTitle}`);
+    }
+
+    const data = await response.json();
+    const imageSource = data.originalimage?.source || data.thumbnail?.source || fish.goofyImagePath;
+    wikiImageCache.set(fish.wikiTitle, imageSource);
+    return imageSource;
+  } catch (error) {
+    console.warn(error);
+    wikiImageCache.set(fish.wikiTitle, fish.goofyImagePath);
+    return fish.goofyImagePath;
+  }
+}
+
+function syncGoofyToggleUi() {
+  goofyModeToggle.classList.toggle("on", goofyModeEnabled);
+  goofyModeToggle.classList.toggle("off", !goofyModeEnabled);
+  goofyModeToggle.setAttribute("aria-pressed", String(goofyModeEnabled));
+}
+
+function syncFishImageLayout() {
+  const imageIsLoaded = fishImage.naturalWidth > 0 && fishImage.naturalHeight > 0;
+  const isLandscape = imageIsLoaded ? fishImage.naturalWidth >= fishImage.naturalHeight : true;
+
+  fishImageWrap.classList.toggle("landscape", isLandscape);
+  fishImageWrap.classList.toggle("portrait", !isLandscape);
 }
 
 function registerInput() {
@@ -242,12 +292,13 @@ function detectNearbyFish() {
   }
 }
 
-function openQuiz(fish) {
+async function openQuiz(fish) {
   interactionLocked = true;
   feedbackMessage.textContent = "";
   feedbackMessage.className = "feedback";
-  fishImage.src = fish.imagePath;
+  fishImage.removeAttribute("src");
   fishImage.alt = fish.name;
+  fishImageWrap.classList.remove("landscape", "portrait");
   fishLocation.textContent = fish.locationHint;
   learnMoreLink.href = fish.infoLink;
   answerButtons.innerHTML = "";
@@ -263,6 +314,11 @@ function openQuiz(fish) {
   });
 
   modalEl.classList.remove("hidden");
+
+  const resolvedImageSource = await getFishImageSource(fish);
+  if (!modalEl.classList.contains("hidden") && fishImage.alt === fish.name) {
+    fishImage.src = resolvedImageSource;
+  }
 }
 
 function handleAnswer(selectedOption, fish) {
@@ -321,7 +377,19 @@ modalEl.addEventListener("click", (event) => {
     closeQuiz();
   }
 });
+settingsToggleButton.addEventListener("click", () => {
+  settingsPanel.classList.toggle("hidden");
+});
+closeSettingsButton.addEventListener("click", () => {
+  settingsPanel.classList.add("hidden");
+});
+goofyModeToggle.addEventListener("click", () => {
+  goofyModeEnabled = !goofyModeEnabled;
+  syncGoofyToggleUi();
+});
+fishImage.addEventListener("load", syncFishImageLayout);
 
 registerInput();
+syncGoofyToggleUi();
 render();
 requestAnimationFrame(loop);
