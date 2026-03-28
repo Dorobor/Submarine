@@ -17,11 +17,38 @@ const learnMoreLink = document.getElementById("learnMoreLink");
 const world = { width: canvas.width, height: canvas.height };
 const player = new Player(120, 120);
 const keys = new Set();
+const spawnSlots = [
+  { x: 220, y: 370 },
+  { x: 690, y: 290 },
+  { x: 810, y: 420 },
+  { x: 520, y: 180 },
+  { x: 350, y: 255 },
+  { x: 120, y: 210 },
+];
+const fishPlacements = assignFishSpawns(fishData, spawnSlots);
 
 let lastFrameTime = performance.now();
 let activeFish = null;
 let answeredFishIds = new Set();
 let interactionLocked = false;
+
+function shuffleArray(items) {
+  const copy = [...items];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+  }
+  return copy;
+}
+
+function assignFishSpawns(fishEntries, slots) {
+  const shuffledSlots = shuffleArray(slots);
+  return fishEntries.map((fish, index) => ({
+    ...fish,
+    worldX: shuffledSlots[index % shuffledSlots.length].x,
+    worldY: shuffledSlots[index % shuffledSlots.length].y,
+  }));
+}
 
 function registerInput() {
   window.addEventListener("keydown", (event) => {
@@ -149,7 +176,7 @@ function drawBubbles() {
 }
 
 function drawFishMarkers() {
-  fishData.forEach((fish) => {
+  fishPlacements.forEach((fish) => {
     const discovered = answeredFishIds.has(fish.id);
     const isNearby = activeFish?.id === fish.id;
 
@@ -195,7 +222,7 @@ function detectNearbyFish() {
   activeFish = null;
   let closestDistance = Number.POSITIVE_INFINITY;
 
-  fishData.forEach((fish) => {
+  fishPlacements.forEach((fish) => {
     const distance = Math.hypot(player.position.x - fish.worldX, player.position.y - fish.worldY);
     if (distance < 62 && distance < closestDistance) {
       activeFish = fish;
@@ -224,8 +251,9 @@ function openQuiz(fish) {
   fishLocation.textContent = fish.locationHint;
   learnMoreLink.href = fish.infoLink;
   answerButtons.innerHTML = "";
+  const shuffledOptions = shuffleArray(fish.options);
 
-  fish.options.forEach((option, index) => {
+  shuffledOptions.forEach((option, index) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "answer-button";
