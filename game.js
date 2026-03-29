@@ -64,7 +64,9 @@ function createBubbles() {
             y: Math.random() * GAME_CONFIG.mapHeight,
             radius: 2 + Math.random() * 6,
             speed: 0.4 + Math.random() * 1.1,
-            drift: (Math.random() - 0.5) * 0.7
+            drift: (Math.random() - 0.5) * 0.7,
+            wobble: Math.random() * Math.PI * 2,
+            shimmer: 0.3 + Math.random() * 0.7
         });
     }
 }
@@ -240,11 +242,12 @@ function update() {
 function updateBubbles() {
     gameState.bubbles.forEach((bubble) => {
         bubble.y -= bubble.speed;
-        bubble.x += bubble.drift;
+        bubble.x += bubble.drift + Math.sin(Date.now() / 900 + bubble.wobble) * 0.18;
 
         if (bubble.y + bubble.radius < 0) {
             bubble.y = GAME_CONFIG.mapHeight + bubble.radius;
             bubble.x = Math.random() * GAME_CONFIG.mapWidth;
+            bubble.wobble = Math.random() * Math.PI * 2;
         }
 
         if (bubble.x < -10) bubble.x = GAME_CONFIG.mapWidth + 10;
@@ -254,9 +257,12 @@ function updateBubbles() {
 
 function draw() {
     drawOcean();
+    drawLightRays();
     drawBubbles();
     drawDepthLines();
+    drawCaustics();
     drawSeabed();
+    drawSeabedDecor();
 
     fish.forEach((fishEntry) => {
         if (!fishEntry.discovered) {
@@ -271,28 +277,37 @@ function draw() {
 
 function drawOcean() {
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, "#1b657f");
-    gradient.addColorStop(0.45, "#0e4056");
-    gradient.addColorStop(1, "#05131f");
+    gradient.addColorStop(0, "#1f7790");
+    gradient.addColorStop(0.2, "#185f79");
+    gradient.addColorStop(0.48, "#0d445b");
+    gradient.addColorStop(0.72, "#082a3d");
+    gradient.addColorStop(1, "#03131f");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const lightGradient = ctx.createRadialGradient(canvas.width * 0.35, 60, 10, canvas.width * 0.35, 60, 260);
-    lightGradient.addColorStop(0, "rgba(255,255,255,0.20)");
+    const lightGradient = ctx.createRadialGradient(canvas.width * 0.35, 45, 20, canvas.width * 0.35, 45, 340);
+    lightGradient.addColorStop(0, "rgba(214,247,255,0.25)");
+    lightGradient.addColorStop(0.35, "rgba(135,223,255,0.12)");
     lightGradient.addColorStop(1, "rgba(255,255,255,0)");
     ctx.fillStyle = lightGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const cyanBloom = ctx.createRadialGradient(canvas.width * 0.7, canvas.height * 0.3, 30, canvas.width * 0.7, canvas.height * 0.3, 280);
+    cyanBloom.addColorStop(0, "rgba(84, 220, 255, 0.08)");
+    cyanBloom.addColorStop(1, "rgba(84, 220, 255, 0)");
+    ctx.fillStyle = cyanBloom;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const offsetX = -gameState.camera.x * 0.08;
     const offsetY = -gameState.camera.y * 0.05;
 
-    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.strokeStyle = "rgba(235,248,255,0.045)";
     ctx.lineWidth = 2;
     for (let i = -1; i < 7; i += 1) {
         const waveY = 80 + i * 90 + (offsetY % 90);
         ctx.beginPath();
         for (let x = -40; x <= canvas.width + 40; x += 30) {
-            const y = waveY + Math.sin((x + offsetX) / 70) * 8;
+            const y = waveY + Math.sin((x + offsetX) / 70) * 8 + Math.cos((x + offsetX) / 150) * 4;
             if (x === -40) {
                 ctx.moveTo(x, y);
             } else {
@@ -301,6 +316,30 @@ function drawOcean() {
         }
         ctx.stroke();
     }
+}
+
+function drawLightRays() {
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+
+    const baseOffset = (gameState.camera.x * 0.12 + Date.now() * 0.01) % 220;
+    for (let i = -1; i < 5; i += 1) {
+        const x = i * 190 - baseOffset;
+        const rayGradient = ctx.createLinearGradient(x, 0, x + 150, canvas.height);
+        rayGradient.addColorStop(0, "rgba(215, 244, 255, 0.16)");
+        rayGradient.addColorStop(0.25, "rgba(135, 223, 255, 0.08)");
+        rayGradient.addColorStop(1, "rgba(135, 223, 255, 0)");
+        ctx.fillStyle = rayGradient;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x + 120, 0);
+        ctx.lineTo(x + 230, canvas.height);
+        ctx.lineTo(x + 60, canvas.height);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    ctx.restore();
 }
 
 function drawBubbles() {
@@ -312,17 +351,39 @@ function drawBubbles() {
             return;
         }
 
+        const glow = bubble.radius * 2.2;
+        const bubbleGradient = ctx.createRadialGradient(
+            screenX - bubble.radius * 0.35,
+            screenY - bubble.radius * 0.45,
+            0,
+            screenX,
+            screenY,
+            glow
+        );
+        bubbleGradient.addColorStop(0, `rgba(245, 253, 255, ${0.22 * bubble.shimmer})`);
+        bubbleGradient.addColorStop(0.45, `rgba(182, 237, 255, ${0.13 * bubble.shimmer})`);
+        bubbleGradient.addColorStop(1, "rgba(182, 237, 255, 0)");
+        ctx.fillStyle = bubbleGradient;
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, glow, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.beginPath();
         ctx.arc(screenX, screenY, bubble.radius, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(210, 245, 255, 0.18)";
+        ctx.fillStyle = `rgba(210, 245, 255, ${0.12 + bubble.shimmer * 0.12})`;
         ctx.fill();
-        ctx.strokeStyle = "rgba(210, 245, 255, 0.26)";
+        ctx.strokeStyle = `rgba(231, 250, 255, ${0.26 + bubble.shimmer * 0.2})`;
         ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(screenX - bubble.radius * 0.28, screenY - bubble.radius * 0.32, Math.max(1, bubble.radius * 0.22), 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.42)";
+        ctx.fill();
     });
 }
 
 function drawDepthLines() {
-    ctx.strokeStyle = "rgba(120, 236, 255, 0.08)";
+    ctx.strokeStyle = "rgba(120, 236, 255, 0.07)";
     ctx.lineWidth = 1;
 
     const startY = -(gameState.camera.y % 70);
@@ -342,8 +403,37 @@ function drawDepthLines() {
     }
 }
 
+function drawCaustics() {
+    ctx.save();
+    ctx.globalAlpha = 0.32;
+    ctx.strokeStyle = "rgba(168, 240, 255, 0.08)";
+    ctx.lineWidth = 3;
+
+    const phaseX = gameState.camera.x * 0.2;
+    const phaseY = gameState.camera.y * 0.18;
+    for (let band = -1; band < 6; band += 1) {
+        const baseY = 140 + band * 120 - (phaseY % 120);
+        ctx.beginPath();
+        for (let x = -30; x <= canvas.width + 30; x += 18) {
+            const y = baseY + Math.sin((x + phaseX) / 42) * 7 + Math.cos((x + phaseX) / 88) * 9;
+            if (x === -30) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
 function drawSeabed() {
-    ctx.fillStyle = "#0a2230";
+    const seabedGradient = ctx.createLinearGradient(0, canvas.height - 170, 0, canvas.height);
+    seabedGradient.addColorStop(0, "#123447");
+    seabedGradient.addColorStop(0.45, "#0b2433");
+    seabedGradient.addColorStop(1, "#061722");
+    ctx.fillStyle = seabedGradient;
     ctx.beginPath();
     ctx.moveTo(0, canvas.height);
     for (let x = -40; x <= canvas.width + 40; x += 40) {
@@ -355,6 +445,74 @@ function drawSeabed() {
     ctx.lineTo(0, canvas.height);
     ctx.closePath();
     ctx.fill();
+
+    ctx.strokeStyle = "rgba(162, 220, 236, 0.08)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = -40; x <= canvas.width + 40; x += 24) {
+        const worldX = x + gameState.camera.x;
+        const y = getSeabedY(worldX) - gameState.camera.y;
+        if (x === -40) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.stroke();
+}
+
+function drawSeabedDecor() {
+    const startX = Math.floor(gameState.camera.x / 120) * 120 - 120;
+
+    for (let worldX = startX; worldX < gameState.camera.x + canvas.width + 120; worldX += 120) {
+        const screenX = worldX - gameState.camera.x;
+        const baseY = getSeabedY(worldX) - gameState.camera.y;
+
+        if (baseY > canvas.height + 40 || baseY < canvas.height - 230) {
+            continue;
+        }
+
+        drawRockCluster(screenX, baseY, worldX);
+        drawSeaweedPatch(screenX, baseY, worldX);
+    }
+}
+
+function drawRockCluster(screenX, baseY, worldX) {
+    const rockCount = 2 + (Math.abs(Math.floor(worldX / 120)) % 3);
+
+    for (let i = 0; i < rockCount; i += 1) {
+        const offsetX = (i - 1) * 16 + Math.sin(worldX * 0.03 + i) * 6;
+        const rockW = 16 + ((worldX + i * 17) % 12);
+        const rockH = 10 + ((worldX + i * 23) % 10);
+        ctx.fillStyle = i % 2 === 0 ? "rgba(24, 53, 66, 0.95)" : "rgba(37, 70, 85, 0.9)";
+        ctx.beginPath();
+        ctx.ellipse(screenX + offsetX, baseY - rockH * 0.4, rockW, rockH, 0.12, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function drawSeaweedPatch(screenX, baseY, worldX) {
+    const bladeCount = 3 + (Math.abs(Math.floor(worldX / 60)) % 4);
+
+    for (let i = 0; i < bladeCount; i += 1) {
+        const rootX = screenX - 28 + i * 11;
+        const height = 24 + ((worldX + i * 13) % 34);
+        const sway = Math.sin(Date.now() / 900 + worldX * 0.015 + i) * 7;
+
+        ctx.strokeStyle = i % 2 === 0 ? "rgba(61, 129, 106, 0.78)" : "rgba(92, 164, 118, 0.72)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(rootX, baseY + 4);
+        ctx.bezierCurveTo(
+            rootX + sway * 0.2,
+            baseY - height * 0.35,
+            rootX + sway,
+            baseY - height * 0.7,
+            rootX + sway * 0.55,
+            baseY - height
+        );
+        ctx.stroke();
+    }
 }
 
 function drawSubmarine() {
