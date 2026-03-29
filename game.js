@@ -30,7 +30,9 @@ const submarine = {
     height: 28,
     vx: 0,
     vy: 0,
-    angle: 0
+    angle: 0,
+    facing: 1,
+    tilt: 0
 };
 
 const fish = [];
@@ -140,6 +142,8 @@ function resetSubmarine() {
     submarine.vx = 0;
     submarine.vy = 0;
     submarine.angle = 0;
+    submarine.facing = 1;
+    submarine.tilt = 0;
     updateCamera();
 }
 
@@ -227,8 +231,20 @@ function update() {
     submarine.x += submarine.vx;
     submarine.y += submarine.vy;
 
+    if (submarine.vx !== 0) {
+        submarine.facing = submarine.vx > 0 ? 1 : -1;
+    }
+
     if (submarine.vx !== 0 || submarine.vy !== 0) {
-        submarine.angle = Math.atan2(submarine.vy, submarine.vx);
+        const targetTilt = Math.max(
+            -0.3,
+            Math.min(0.3, (submarine.vy / GAME_CONFIG.submarineSpeed) * 0.22 * submarine.facing)
+        );
+        submarine.tilt += (targetTilt - submarine.tilt) * 0.22;
+        submarine.angle = submarine.tilt;
+    } else {
+        submarine.tilt *= 0.86;
+        submarine.angle = submarine.tilt;
     }
 
     submarine.x = Math.max(22, Math.min(submarine.x, GAME_CONFIG.mapWidth - submarine.width - 20));
@@ -527,6 +543,7 @@ function drawSubmarine() {
     ctx.save();
     ctx.translate(centerX, centerY + bob);
     ctx.rotate(submarine.angle);
+    ctx.scale(submarine.facing, 1);
     ctx.translate(-submarine.width / 2, -submarine.height / 2);
 
     ctx.save();
@@ -569,27 +586,34 @@ function drawSubmarine() {
     ctx.fill();
     ctx.restore();
 
-    ctx.fillStyle = "#c98e1a";
-    ctx.beginPath();
-    ctx.arc(submarine.width / 2 + 8, submarine.height / 2, 9, 0, Math.PI * 2);
-    ctx.fill();
+    const windowCenters = [
+        submarine.width / 2 - 10,
+        submarine.width / 2 + 8,
+        submarine.width / 2 + 24
+    ];
+    windowCenters.forEach((windowX, index) => {
+        ctx.fillStyle = "#c98e1a";
+        ctx.beginPath();
+        ctx.arc(windowX, submarine.height / 2, 7.5, 0, Math.PI * 2);
+        ctx.fill();
 
-    const glassGrad = ctx.createRadialGradient(submarine.width / 2 + 6, submarine.height / 2 - 2, 1, submarine.width / 2 + 8, submarine.height / 2, 7);
-    glassGrad.addColorStop(0, "#c8f8ff");
-    glassGrad.addColorStop(0.6, "#5ee4ff");
-    glassGrad.addColorStop(1, "#2ab5d4");
-    ctx.fillStyle = glassGrad;
-    ctx.beginPath();
-    ctx.arc(submarine.width / 2 + 8, submarine.height / 2, 7, 0, Math.PI * 2);
-    ctx.fill();
+        const glassGrad = ctx.createRadialGradient(windowX - 2, submarine.height / 2 - 2, 1, windowX, submarine.height / 2, 6);
+        glassGrad.addColorStop(0, "#d8fbff");
+        glassGrad.addColorStop(0.6, index === 1 ? "#73ebff" : "#5ee4ff");
+        glassGrad.addColorStop(1, "#2ab5d4");
+        ctx.fillStyle = glassGrad;
+        ctx.beginPath();
+        ctx.arc(windowX, submarine.height / 2, 5.7, 0, Math.PI * 2);
+        ctx.fill();
 
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath();
-    ctx.arc(submarine.width / 2 + 6, submarine.height / 2 - 2, 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(windowX - 1.7, submarine.height / 2 - 1.8, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    });
 
     const towerGrad = ctx.createLinearGradient(submarine.width / 2 - 5, -14, submarine.width / 2 + 10, -14);
     towerGrad.addColorStop(0, "#ffd166");
@@ -609,29 +633,29 @@ function drawSubmarine() {
     ctx.stroke();
 
     ctx.save();
-    ctx.translate(submarine.width - 2, submarine.height / 2);
+    ctx.translate(-4, submarine.height / 2);
+    ctx.strokeStyle = "rgba(120, 78, 14, 0.8)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = "#8f6514";
+    ctx.beginPath();
+    ctx.arc(0, 0, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.rotate(time * 3);
     ctx.fillStyle = "#b58216";
     for (let blade = 0; blade < 3; blade += 1) {
         ctx.save();
         ctx.rotate((blade * Math.PI * 2) / 3);
         ctx.beginPath();
-        ctx.ellipse(0, -6, 2, 5, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, -6, 2.3, 5.8, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
     ctx.restore();
-
-    const tailGrad = ctx.createLinearGradient(submarine.width - 14, 2, submarine.width - 14, submarine.height - 2);
-    tailGrad.addColorStop(0, "#f4a81e");
-    tailGrad.addColorStop(1, "#e08c16");
-    ctx.fillStyle = tailGrad;
-    ctx.beginPath();
-    ctx.moveTo(submarine.width - 4, submarine.height / 2);
-    ctx.lineTo(submarine.width - 14, 2);
-    ctx.lineTo(submarine.width - 14, submarine.height - 2);
-    ctx.closePath();
-    ctx.fill();
 
     ctx.restore();
 }
