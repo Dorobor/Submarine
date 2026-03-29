@@ -272,6 +272,7 @@ function draw() {
 
     if (gameState.started) {
         drawSubmarine();
+        drawGuideArrow();
     }
 }
 
@@ -520,40 +521,156 @@ function drawSubmarine() {
     const y = submarine.y - gameState.camera.y;
     const centerX = x + submarine.width / 2;
     const centerY = y + submarine.height / 2;
+    const time = Date.now() / 300;
+    const bob = Math.sin(time * 0.3) * 1.5;
 
     ctx.save();
-    ctx.translate(centerX, centerY);
+    ctx.translate(centerX, centerY + bob);
     ctx.rotate(submarine.angle);
     ctx.translate(-submarine.width / 2, -submarine.height / 2);
-    ctx.shadowColor = "rgba(255, 209, 102, 0.45)";
-    ctx.shadowBlur = 18;
 
-    ctx.fillStyle = "#ffd166";
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    const spotGrad = ctx.createLinearGradient(submarine.width * 0.7, submarine.height / 2, submarine.width * 0.7 + 100, submarine.height / 2);
+    spotGrad.addColorStop(0, "rgba(180, 240, 255, 1)");
+    spotGrad.addColorStop(1, "rgba(180, 240, 255, 0)");
+    ctx.fillStyle = spotGrad;
+    ctx.beginPath();
+    ctx.moveTo(submarine.width * 0.7, submarine.height / 2 - 3);
+    ctx.lineTo(submarine.width * 0.7 + 100, submarine.height / 2 - 18);
+    ctx.lineTo(submarine.width * 0.7 + 100, submarine.height / 2 + 18);
+    ctx.lineTo(submarine.width * 0.7, submarine.height / 2 + 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.shadowColor = "rgba(255, 209, 102, 0.5)";
+    ctx.shadowBlur = 22;
+    ctx.shadowOffsetY = 2;
+
+    const bodyGrad = ctx.createLinearGradient(0, 0, 0, submarine.height);
+    bodyGrad.addColorStop(0, "#ffe08a");
+    bodyGrad.addColorStop(0.4, "#ffd166");
+    bodyGrad.addColorStop(1, "#e6a82e");
+    ctx.fillStyle = bodyGrad;
     ctx.beginPath();
     ctx.ellipse(submarine.width / 2, submarine.height / 2, submarine.width / 2, submarine.height / 2, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = "#f4b942";
-    ctx.fillRect(10, 4, 22, 8);
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
 
-    ctx.fillStyle = "#7ae7ff";
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = "#fff6d5";
+    ctx.beginPath();
+    ctx.ellipse(submarine.width / 2 - 4, submarine.height * 0.28, submarine.width * 0.32, submarine.height * 0.18, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = "#c98e1a";
+    ctx.beginPath();
+    ctx.arc(submarine.width / 2 + 8, submarine.height / 2, 9, 0, Math.PI * 2);
+    ctx.fill();
+
+    const glassGrad = ctx.createRadialGradient(submarine.width / 2 + 6, submarine.height / 2 - 2, 1, submarine.width / 2 + 8, submarine.height / 2, 7);
+    glassGrad.addColorStop(0, "#c8f8ff");
+    glassGrad.addColorStop(0.6, "#5ee4ff");
+    glassGrad.addColorStop(1, "#2ab5d4");
+    ctx.fillStyle = glassGrad;
     ctx.beginPath();
     ctx.arc(submarine.width / 2 + 8, submarine.height / 2, 7, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = "#ffd166";
-    ctx.lineWidth = 3;
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = "#ffffff";
     ctx.beginPath();
-    ctx.moveTo(submarine.width / 2 - 2, 2);
-    ctx.lineTo(submarine.width / 2 - 2, -12);
-    ctx.lineTo(submarine.width / 2 + 8, -12);
+    ctx.arc(submarine.width / 2 + 6, submarine.height / 2 - 2, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    const towerGrad = ctx.createLinearGradient(submarine.width / 2 - 5, -14, submarine.width / 2 + 10, -14);
+    towerGrad.addColorStop(0, "#ffd166");
+    towerGrad.addColorStop(1, "#e6a82e");
+    ctx.fillStyle = towerGrad;
+    ctx.beginPath();
+    ctx.roundRect(submarine.width / 2 - 5, -10, 14, 14, [3, 3, 0, 0]);
+    ctx.fill();
+
+    ctx.strokeStyle = "#c98e1a";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(submarine.width / 2 + 1, -10);
+    ctx.lineTo(submarine.width / 2 + 1, -18);
+    ctx.lineTo(submarine.width / 2 + 8, -18);
     ctx.stroke();
 
-    ctx.fillStyle = "#ff9f1c";
+    ctx.save();
+    ctx.translate(submarine.width - 2, submarine.height / 2);
+    ctx.rotate(time * 3);
+    ctx.fillStyle = "#b58216";
+    for (let blade = 0; blade < 3; blade += 1) {
+        ctx.save();
+        ctx.rotate((blade * Math.PI * 2) / 3);
+        ctx.beginPath();
+        ctx.ellipse(0, -6, 2, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+    ctx.restore();
+
+    const tailGrad = ctx.createLinearGradient(submarine.width - 14, 2, submarine.width - 14, submarine.height - 2);
+    tailGrad.addColorStop(0, "#f4a81e");
+    tailGrad.addColorStop(1, "#e08c16");
+    ctx.fillStyle = tailGrad;
     ctx.beginPath();
-    ctx.moveTo(submarine.width - 2, submarine.height / 2);
-    ctx.lineTo(submarine.width - 12, 4);
-    ctx.lineTo(submarine.width - 12, submarine.height - 4);
+    ctx.moveTo(submarine.width - 4, submarine.height / 2);
+    ctx.lineTo(submarine.width - 14, 2);
+    ctx.lineTo(submarine.width - 14, submarine.height - 2);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+}
+
+function drawGuideArrow() {
+    const nearest = getNearestUndiscoveredFish();
+
+    if (!nearest || nearest.distance <= GAME_CONFIG.interactionDistance) {
+        return;
+    }
+
+    const submarineCenterX = submarine.x + submarine.width / 2 - gameState.camera.x;
+    const submarineCenterY = submarine.y + submarine.height / 2 - gameState.camera.y;
+    const angle = Math.atan2(nearest.fishEntry.y - (submarine.y + submarine.height / 2), nearest.fishEntry.x - (submarine.x + submarine.width / 2));
+    const pulse = 1 + Math.sin(Date.now() / 220) * 0.08;
+
+    ctx.save();
+    ctx.translate(
+        submarineCenterX + Math.cos(angle) * 54,
+        submarineCenterY + Math.sin(angle) * 54
+    );
+    ctx.rotate(angle);
+    ctx.scale(pulse, pulse);
+
+    ctx.strokeStyle = "rgba(122, 231, 255, 0.92)";
+    ctx.fillStyle = "rgba(122, 231, 255, 0.92)";
+    ctx.lineWidth = 3;
+    ctx.shadowColor = "rgba(122, 231, 255, 0.45)";
+    ctx.shadowBlur = 18;
+
+    ctx.beginPath();
+    ctx.moveTo(-18, 0);
+    ctx.lineTo(8, 0);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(18, 0);
+    ctx.lineTo(2, -11);
+    ctx.lineTo(2, 11);
     ctx.closePath();
     ctx.fill();
 
@@ -656,8 +773,8 @@ function showEncounterModal(fishEntry) {
     document.getElementById("sourceLink").href = fishEntry.data.sourceUrl;
     document.getElementById("modalKicker").textContent = getPhaseKicker(fishEntry.phase);
     document.getElementById("modalTitle").textContent = getModalTitle();
-    document.getElementById("dangerBadge").className = `danger-badge ${DANGER_LEVELS[fishEntry.data.dangerLevel].className}`;
-    document.getElementById("dangerBadge").textContent = `Danger: ${DANGER_LEVELS[fishEntry.data.dangerLevel].label}`;
+    document.getElementById("dangerBadge").className = `danger-badge ${CONSERVATION_STATUSES[fishEntry.data.dangerLevel].className}`;
+    document.getElementById("dangerBadge").textContent = `Conservation: ${CONSERVATION_STATUSES[fishEntry.data.dangerLevel].label}`;
     modalContent.classList.toggle("modal-content-learning", fishEntry.phase === "learning");
     if (fishEntry.phase === "free") {
         document.getElementById("freeResponseForm").classList.remove("hidden");
@@ -1079,7 +1196,7 @@ function renderSpeciesList() {
         const item = document.createElement("li");
         const station = fish.find((fishEntry) => fishEntry.id === species.id);
         const discovered = gameState.discoveredFish.has(species.id);
-        const danger = DANGER_LEVELS[species.dangerLevel];
+        const conservationStatus = CONSERVATION_STATUSES[species.dangerLevel];
 
         if (discovered) {
             item.classList.add("caught");
@@ -1092,7 +1209,7 @@ function renderSpeciesList() {
             </div>
             <div class="species-side">
                 <span class="species-status">${getSpeciesStatus(station, discovered)}</span>
-                ${discovered ? `<span class="mini-danger ${danger.className}">${danger.label}</span>` : ""}
+                ${discovered ? `<span class="mini-danger ${conservationStatus.className}">${conservationStatus.label}</span>` : ""}
             </div>
         `;
 
@@ -1129,23 +1246,11 @@ function updateHud() {
         return;
     }
 
-    const undiscoveredFish = fish.filter((fishEntry) => !fishEntry.discovered);
-
-    if (!undiscoveredFish.length) {
-        statusEl.textContent = "All signals resolved";
-        targetEl.textContent = "Mission complete";
-        return;
-    }
-
-    const nearest = undiscoveredFish.reduce((closest, fishEntry) => {
-        const distance = getDistanceToSubmarine(fishEntry);
-        if (!closest || distance < closest.distance) {
-            return { fishEntry, distance };
-        }
-        return closest;
-    }, null);
+    const nearest = getNearestUndiscoveredFish();
 
     if (!nearest) {
+        statusEl.textContent = "All signals resolved";
+        targetEl.textContent = "Mission complete";
         return;
     }
 
@@ -1156,6 +1261,22 @@ function updateHud() {
         statusEl.textContent = "Exploring";
         targetEl.textContent = `${Math.round(nearest.distance)} px away`;
     }
+}
+
+function getNearestUndiscoveredFish() {
+    const undiscoveredFish = fish.filter((fishEntry) => !fishEntry.discovered);
+
+    if (!undiscoveredFish.length) {
+        return null;
+    }
+
+    return undiscoveredFish.reduce((closest, fishEntry) => {
+        const distance = getDistanceToSubmarine(fishEntry);
+        if (!closest || distance < closest.distance) {
+            return { fishEntry, distance };
+        }
+        return closest;
+    }, null);
 }
 
 function showGameOverModal() {
