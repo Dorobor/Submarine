@@ -29,11 +29,22 @@ body {
     font-family: "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif;
     color: var(--text);
     min-height: 100vh;
-    background:
-        radial-gradient(circle at top, rgba(120, 236, 255, 0.14), transparent 34%),
-        linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+    background-image: url('https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=1600&q=80');
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
     padding: 24px;
     overflow-x: hidden;
+    position: relative;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 30, 40, 0.5), rgba(0, 20, 30, 0.6));
+    pointer-events: none;
+    z-index: 0;
 }
 
 .page-glow {
@@ -51,7 +62,7 @@ body {
     max-width: 1220px;
     margin: 0 auto;
     position: relative;
-    z-index: 1;
+    z-index: 2;
 }
 
 .hero {
@@ -123,9 +134,7 @@ body {
 
 .mode-badge,
 .danger-badge,
-.status-badge,
-.mini-danger,
-.mini-status {
+.mini-danger {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -355,24 +364,30 @@ body {
 }
 
 .danger-low,
-.status-least-concern {
-    background: rgba(156, 255, 176, 0.16);
-    color: var(--success);
-    border: 1px solid rgba(156, 255, 176, 0.2);
+.status-good {
+    background: rgba(74, 222, 128, 0.16);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.3);
 }
 
 .danger-medium,
-.status-vulnerable {
-    background: rgba(255, 209, 102, 0.16);
-    color: var(--sun);
-    border: 1px solid rgba(255, 209, 102, 0.22);
+.status-caution {
+    background: rgba(234, 179, 8, 0.16);
+    color: #facc15;
+    border: 1px solid rgba(234, 179, 8, 0.3);
 }
 
 .danger-high,
-.status-endangered {
-    background: rgba(255, 139, 148, 0.16);
-    color: var(--danger);
-    border: 1px solid rgba(255, 139, 148, 0.22);
+.status-warning {
+    background: rgba(249, 115, 22, 0.16);
+    color: #fb923c;
+    border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.status-critical {
+    background: rgba(239, 68, 68, 0.16);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .toast {
